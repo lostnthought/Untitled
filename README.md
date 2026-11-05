@@ -5,7 +5,7 @@ A custom 3D game engine made from scratch in C with uv lightmapping, path traced
 - **Rendering:** Clustered forward shading, GPU-driven rendering (MDI), indirect lighting probe volumes, reflection probes, and a software path-traced UV lightmapper using BVH traversal on the GPU.
 - **Audio:** Path-traced audio probe volumes computed offline via Schroeder integration, rotated in real-time, convolved with an HRTF, and partitioned for overlap-add as it approaches the audio thread.
 - **Physics:** 3D physics component pipeline featuring incremental hull generation, GJK/EPA collision detection, clipped manifolds, and BVH acceleration structures.
-- **Systems:** ECS, skeletal animations, screen-space effects, PBR, and an editor with full undo/redo capabilities via custom linked lists and byte-offset pointer arithmetic.
+- **Systems:** ECS, UI and text rendering, skeletal animations, screen-space effects, PBR, and an editor with full undo/redo capabilities via custom linked lists and byte-offset pointer arithmetic.
 
 ## Included Tech
 - **Language:** C
