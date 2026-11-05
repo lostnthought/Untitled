@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "cJSON.h"
+#include "cJSON/cJSON.h"
 #include "utilities/types.h"
 #include "ui/ui.h"
 #include "utilities/utilities.h"
