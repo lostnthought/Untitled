@@ -4,7 +4,7 @@
 #include "core/camera.h"
 #include "load/init.h"
 #include "utilities/mathf.h"
-#include "miniaudio.h"
+#include "miniaudio/miniaudio.h"
 #include "render/render.h"
 #include <string.h>
 #include "core/engine_types.h"

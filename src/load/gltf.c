@@ -11,9 +11,9 @@
 #include "utilities/types.h"
 #include "load/load.h"
 #include "load/init.h"
-#include "nuklear.h"
-#include "nuklear_sdl_gl3.h"
-#include "cJSON.h"
+#include "nuklear/nuklear.h"
+#include "nuklear/nuklear_sdl_gl3.h"
+#include "cJSON/cJSON.h"
 #include "utilities/utilities.h"
 
 static int comp_count(const char *type) {

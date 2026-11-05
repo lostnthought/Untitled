@@ -5,7 +5,7 @@
 #include "load/init.h"
 #include "light/lightmap.h"
 #include "utilities/types.h"
-#include "stb_image.h"
+#include "stb/stb_image.h"
 #include "render/render.h"
 #include "audio/audio.h"
 #include "ui/fonts.h"

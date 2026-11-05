@@ -35,8 +35,8 @@
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 960
 
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include "stb/stb_image.h"
+#include "stb/stb_image_write.h"
 
 // #define MYSOFA_STATIC_DEFINE
 // // #include "mysod
@@ -52,8 +52,8 @@ int DEBUG_CURRENT_APROBE = 0;
 
 
 #include "nk_config.h"
-#include "nuklear.h"
-#include "nuklear_sdl_gl3.h"
+#include "nuklear/nuklear.h"
+#include "nuklear/nuklear_sdl_gl3.h"
 #define MAX_VERTEX_MEMORY 1024 * 1024
 #define MAX_ELEMENT_MEMORY 512 * 1024
 

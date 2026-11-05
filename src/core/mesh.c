@@ -6,7 +6,7 @@
 #include "utilities/utilities.h"
 #include "utilities/mathf.h"
 #include "core/mesh.h"
-#include "uthash.h"
+#include "uthash/uthash.h"
 
 
 

@@ -9,12 +9,12 @@
 #include "SDL2/SDL_mutex.h"
 #include "SDL2/SDL_thread.h"
 #include "nk_config.h"
-#include "nuklear.h"
+#include "nuklear/nuklear.h"
 #include <omp.h>
-#include "nuklear_sdl_gl3.h"
-#include "miniaudio.h"
+#include "nuklear/nuklear_sdl_gl3.h"
+#include "miniaudio/miniaudio.h"
 #include <fftw3.h>
-#include "uthash.h"
+#include "uthash/uthash.h"
 #include <stdatomic.h>
 #include "utilities/types.h"
 
