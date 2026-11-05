@@ -26,3 +26,5 @@ You will need:
 make
 ```
 Place glew32.dll, SDL2.dll, and libfftw3f-f.dll alongside the binary in bin/. If you have any further trouble, try using the pkg-config included in the makefile.
+
+For inputs and controls, refer to input.c.
