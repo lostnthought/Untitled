@@ -19,7 +19,7 @@ scene_lpvs/
 scenes/
 sofas/
 sounds/
-ui/
+_ui/
 
 .ignore
 .clangd
