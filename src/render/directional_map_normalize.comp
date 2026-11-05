@@ -1,0 +1,40 @@
+#version 430 core
+
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout(rgba32f, binding = 0) readonly uniform image2D inLightTex;
+layout(rgba32f, binding = 1) writeonly uniform image2D outLightTex;
+layout(rgba32f, binding = 2) readonly uniform image2D inDirTex;
+layout(rgba8, binding = 3) writeonly uniform image2D outDirTex;
+
+uniform int uLightmapWidth;
+uniform int uLightmapHeight;
+uniform int uSampleCount;
+void main()
+{
+
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x >= uLightmapWidth || coord.y >= uLightmapHeight) return;
+    
+    vec4 light_data = imageLoad(inLightTex, coord);
+    vec4 dir_data = imageLoad(inDirTex, coord);
+
+    vec4 final_color = light_data / uSampleCount;
+    // final_color.a = 1 - final_color.a;
+
+    vec3 accum_vector = dir_data.xyz;
+
+    float vector_length = length(accum_vector);
+
+    vec3 dominant = (vector_length > 0.00001f) ? accum_vector / vector_length : vec3(0,0,1);
+
+    float acc_luminance = dir_data.a;
+    
+    float focus_factor = (acc_luminance > 0.00001f) ? vector_length / acc_luminance : 1.0f;
+    
+    vec3 dominant_norm = dominant * 0.5f + 0.5f;
+
+
+    imageStore(outLightTex, coord, final_color);
+    imageStore(outDirTex, coord, vec4(dominant_norm, focus_factor));
+    
+}

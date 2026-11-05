@@ -1,0 +1,84 @@
+#version 430 core
+
+layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawArraysIndirectCommand {
+    uint count;
+    uint instanceCount;
+    uint first;
+    uint baseInstance;
+    uint instanceOffset; // the amount of instances pushed this frame
+    uint pad0;
+};
+
+layout(std430, binding = 5) buffer DrawArraysData {
+
+    DrawArraysIndirectCommand in_arr[];
+};
+
+layout(std430, binding = 6) buffer DrawArraysOutData {
+
+    DrawArraysIndirectCommand out_arr[];
+};
+
+uniform uint n;
+
+shared uint temp[1024];
+
+void main()
+{
+
+    uint id = gl_GlobalInvocationID.x;
+    bool worker = (id < n);
+    int pin = 1;
+    int pout = 0;
+    // if (id >= n) return;
+
+    if (id < n)
+    {
+        temp[id] = (id > 0) ? in_arr[id - 1].instanceOffset : 0;
+        
+    }
+    else
+    {
+        temp[id] = 0;
+    }
+    // temp[id] = in_arr[id].instanceCount;
+
+    memoryBarrierShared();
+    barrier();
+
+    for (int i = 1; i < n; i *= 2)
+    {
+        
+        pout = 1 - pout;
+        pin = 1 - pout;
+
+        uint val = 0;
+        if (id >= i)
+        {
+            val = temp[id - i];
+            // temp[pout * n + id] += temp[pin * n + id - i];
+        }
+        else
+        {
+            // temp[pout * n + id] = temp[pin * n + id];
+        }
+        memoryBarrierShared();
+        barrier();
+        temp[id] += val;
+
+        
+        memoryBarrierShared();
+        barrier();
+    }
+
+    out_arr[id] = in_arr[id];
+    // out_arr[id].baseInstance = temp[pout * n + id];
+    out_arr[id].baseInstance = temp[id];
+    in_arr[id].instanceCount = 0;
+    in_arr[id].baseInstance = 0;
+    in_arr[id].instanceOffset = 0;
+
+    
+}

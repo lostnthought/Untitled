@@ -1,0 +1,620 @@
+#version 430 core
+
+#extension GL_ARB_bindless_texture : require
+layout (local_size_x = 16, local_size_y = 16) in;
+
+
+#define SAMPLE_RATE 48000
+#define SPEED_OF_SOUND 343.0f 
+#define MAX_SAMPLES (SAMPLE_RATE * 1)
+#define NUM_RAYS 100000
+
+struct Material
+{
+    
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 emissive;
+
+    float absorption_coefficients[6];
+    uint pad0;
+    uint pad1;
+    float scattering_coefficients[6];
+    uint pad2;
+    uint pad3;
+
+    sampler2D albedo_tex;
+    sampler2D normal_tex;
+    sampler2D arm_tex;
+    sampler2D emissive_tex;
+    
+    float metallic;
+    float roughness;
+    float ao_strength;
+    float normal_scale;
+    uint alpha_mode;
+    float alpha_cutoff;
+    uint double_sided;
+    float emissive_strength;
+
+};
+
+layout(std430, binding = 2) buffer MaterialData {
+    Material materials[];
+};
+
+
+
+struct Vertex {
+
+    vec3 pos;
+    uint pad0;
+    vec3 normal;
+    uint pad1;
+    vec2 uv;
+    uint pad2;
+    uint pad3;
+
+};
+
+layout(std430, binding = 4) buffer VertexData {
+    Vertex vertices[];
+};
+
+struct Face {
+
+    uvec3 indices;
+    uint material_id;
+    vec3 normal;
+    uint mesh_id;
+    uint bvh_index;
+    uint tri_idx;
+    uint pad0;
+    uint pad1;
+    Vertex v0;
+    Vertex v1;
+    Vertex v2;
+
+};
+
+layout(std430, binding = 5) buffer TriData {
+    Face tris[];
+};
+
+struct MeshNode {
+
+    uint mesh_node_id;
+    uint mesh_id;
+
+    uint node_count;
+    uint node_offset;
+    uint vertex_offset;
+    uint vertex_count;
+    uint tri_offset;
+    uint tri_count;
+    uint bvh_index;
+    uint is_static;
+    uint skip_directional_light;
+    uint pad2;
+
+    mat4 global_matrix;
+    mat4 inverse_global_matrix;
+
+};
+
+layout(std430, binding = 6) buffer MeshData {
+    MeshNode mesh_nodes[];
+};
+
+struct AABB
+{
+
+    vec3 min;
+    uint pad0;
+    vec3 max;
+    uint pad1;
+    vec3 center;
+    uint pad2;
+    vec3 extents;
+    uint pad3;
+    
+};
+
+
+struct BVHNode
+{
+
+    int left;
+    int right;
+    int parent;
+    int index;
+
+    int first_index;
+    int count;
+    int next;
+    uint pad0;
+
+    vec3 min;
+    uint pad1;
+    vec3 max;
+    uint pad2;
+    vec3 center;
+    uint pad3;
+    vec3 extents;
+    uint pad4;
+
+};
+
+layout(std430, binding = 7) buffer MeshBVHData {
+    BVHNode mesh_bvh_nodes[];
+};
+
+layout(std430, binding = 8) buffer SceneBVHData {
+    BVHNode scene_bvh_nodes[];
+};
+struct AudioProbe
+{
+
+    vec3 pos;
+    uint pad0;
+    
+};
+
+layout(std430, binding = 9) buffer AProbeData {
+    AudioProbe aprobes[];
+};
+
+struct AudioSample
+{
+    vec3 arrival_dir;
+    float time_of_flight;
+    vec3 pos;
+    uint valid;
+    float energy[6];  
+    uint pad0;
+    uint pad1;
+    float abs_energy[6];  
+    uint pad4;
+    uint pad5;
+
+};
+
+
+layout(std430, binding = 10) buffer BounceData {
+    AudioSample samples[];
+};
+
+uint state = 0;
+
+uint pcg_hash() {
+    state = state * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+
+uint wang_hash(uint seed) {
+    seed = (seed ^ 61u) ^ (seed >> 16u);
+    seed *= 9u;
+    seed = seed ^ (seed >> 4u);
+    seed *= 0x27d4eb2du;
+    seed = seed ^ (seed >> 15u);
+    return seed;
+}
+
+float rand() {
+    return float(pcg_hash()) / 4294967296.0;
+}
+void frisvad_basis(in vec3 n, out vec3 b1, out vec3 b2) {
+    if (n.z < -0.99998796f) { 
+        b1.x = 0.0f; b1.y = -1.0f; b1.z = 0.0f;
+        b2.x = -1.0f; b2.y = 0.0f; b2.z = 0.0f;
+        return;
+    }
+
+    float a = 1.0f / (1.0f + n.z);
+    float b = -n.x * n.y * a;
+
+    b1.x = 1.0f - n.x * n.x * a;
+    b1.y = b;
+    b1.z = -n.x;
+
+    b2.x = b;
+    b2.y = 1.0f - n.y * n.y * a;
+    b2.z = -n.y;
+}
+
+vec3 get_bounce_direction(vec3 normal) {
+    float r1 = rand();
+    float r2 = rand();
+
+    float phi = 2.0 * 3.14159265 * r1;
+    float x = cos(phi) * sqrt(r2);
+    float y = sin(phi) * sqrt(r2);
+    float z = sqrt(1.0 - r2);
+    vec3 local_dir = vec3(x, y, z);
+
+    vec3 tangent;
+    vec3 bitangent;
+    if (abs(normal.z) > 0.999)
+    {
+        
+        frisvad_basis(normal, tangent, bitangent);
+    }
+    else
+    {
+        
+        vec3 up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        tangent = normalize(cross(up, normal));
+        bitangent = cross(normal, tangent);
+    }
+    
+    mat3 TBN = mat3(tangent, bitangent, normal);
+    
+    return normalize(TBN * local_dir);
+}
+
+vec3 generate_sphere_dir(int i, int N)
+{
+    
+    float phi = 3.14159265 * (3.0f - sqrt(5.0f));
+
+    float y = 1.0f - 2.0f*(i+0.5f)/N;
+
+    float r = sqrt(1-y*y);
+
+    float theta = phi*i;
+
+    return vec3(cos(theta) * r, y, sin(theta) * r);
+}
+struct RayHit
+{
+    vec3 pos;
+    float t;
+    vec3 barycentrics;
+    uint mn_idx;
+    vec3 normal;
+    uint tri_idx;
+    float best_t;
+    float blocked_t;
+    bool hit;
+    bool occluded;
+    uint pad1;
+    
+};
+
+RayHit hit;
+
+RayHit ray_intersects_triangle(vec3 origin, vec3 dir, vec3 a, vec3 b, vec3 c)
+{
+
+    RayHit out_hit;
+
+    out_hit.hit = false;
+
+    vec3 edge1 = b-a;
+    vec3 edge2 = c-a;
+    vec3 h = cross(dir, edge2);
+    float dA = dot(edge1, h);
+
+    if (abs(dA) < 0.000001f) {
+        return out_hit;
+    }
+
+    float f = 1.0f / dA;
+    vec3 s = origin - a;
+    float u = f * dot(s, h);
+    if (u < 0.0f || u > 1.0f) {
+        return out_hit;
+    }
+
+    vec3 q = cross(s, edge1);
+    float v = f * dot(dir, q);
+    if (v < 0.0f || u + v > 1.0f) {
+        return out_hit;
+    }
+
+    float t = f * dot(edge2, q);
+    if (t > 0.0) {
+        out_hit.t = t;
+
+        float w = 1.0f - u - v;
+        out_hit.pos = a * w + b * u + c * v;
+        out_hit.barycentrics = vec3(w, u, v);
+        out_hit.hit = true;
+        
+        return out_hit;
+    }
+
+    return out_hit;    
+}
+
+bool slab_test(BVHNode n, vec3 pos, vec3 inv_dir) {
+    vec3 t1 = (n.min - pos) * inv_dir;
+    vec3 t2 = (n.max - pos) * inv_dir;
+
+    vec3 tmin = min(t1, t2);
+    vec3 tmax = max(t1, t2);
+
+    float t_near = max(max(tmin.x, tmin.y), tmin.z);
+    float t_far  = min(min(tmax.x, tmax.y), tmax.z);
+    float closest_valid_t = min(hit.t, hit.blocked_t);    
+    return (t_far >= max(0.0f, t_near) && t_near < closest_valid_t);
+}
+
+void traverse_mesh_bvh(uint node_offset, uint mn_id, vec3 pp, vec3 pm, vec3 original_dir, vec3 dir, vec3 md, uint mesh, uint tri)
+{
+    int ni = int(node_offset);
+    
+    while (ni >= 0)
+    {
+        BVHNode n = mesh_bvh_nodes[ni];
+
+
+        if (!slab_test(n, pm, md))
+        {
+            ni = n.next;
+            continue;
+        }
+
+        if (n.left == -1 && n.right == -1)
+        {
+            for (int i = 0; i < n.count; i++)
+            {
+
+                uint tri_idx = tris[i + n.first_index].bvh_index;
+                Face f = tris[tri_idx];
+                
+                vec3 a = f.v0.pos;
+                vec3 b = f.v1.pos;
+                vec3 c = f.v2.pos;
+
+                RayHit current_hit = ray_intersects_triangle(pm, dir, a, b, c);
+                if (!current_hit.hit) continue;
+
+
+                bool col = (current_hit.t < hit.t);
+                
+                bool dot_test = dot(f.normal, dir) <= 0.0f;
+                if (dot_test)
+                {
+
+                    if (col)
+                    {
+                        
+                        float temp_best_t = hit.best_t;
+                        float temp_blocked_t = hit.blocked_t;
+                        hit = current_hit;
+                        hit.occluded = true;
+                        hit.best_t = temp_best_t;
+                        hit.blocked_t = temp_blocked_t;
+                        hit.mn_idx = mn_id;
+                        hit.tri_idx = tri_idx;
+                        hit.normal = f.normal;
+                        hit.hit = true;
+                    }
+                }
+            }
+            ni = n.next;
+        }
+        else
+        {
+                
+            ni = n.left;
+        }
+    }
+}
+
+
+void traverse_scene_bvh(vec3 pp, vec3 dir, vec3 inv_dir, uint light_type, uint mesh, uint tri)
+{
+    int ni = 0;
+    while (ni >= 0)
+    {
+        BVHNode n = scene_bvh_nodes[ni];
+        
+        if (!slab_test(n, pp, inv_dir))
+        {
+            ni = n.next;
+            continue;
+        }
+
+        if (n.left == -1 && n.right == -1)
+        {
+            for (int i = 0; i < n.count; i++)
+            {
+
+                MeshNode mn = mesh_nodes[mesh_nodes[i + n.first_index].bvh_index];
+                if (mn.is_static == 0) continue;
+                if (mn.mesh_id == -1) continue;
+
+
+                mat4 inverse_matrix = mn.inverse_global_matrix;
+                vec3 pm = (inverse_matrix * vec4(pp, 1.0)).xyz;
+                vec3 md = (inverse_matrix * vec4(dir, 0.0)).xyz;
+                vec3 inv_md = 1.0f / md;
+
+                traverse_mesh_bvh(mn.node_offset, mn.mesh_node_id, pp, pm, dir, md, inv_md, mesh, tri);
+            }
+            ni = n.next;
+            
+        }
+        else
+        {
+            ni = n.left;
+        }
+    }
+    
+}
+
+uniform uint uProbeSize;
+uniform uint uRayOffset;
+uniform uint uIterations;
+uniform uint uMaxSamplesPerProbe;
+uniform uint uBounces;
+uniform uint uBatchSize;
+uniform uint uProbeOffset;
+    
+    
+
+
+const int AUDIO_NUM_BANDS = 6;
+
+
+void main()
+{
+
+    uvec2 id = gl_GlobalInvocationID.xy;
+    if (id.x >= uBatchSize || id.y >= uProbeSize) return;
+    
+    uint seed = uint(id.x) + uint(id.y) * 1973u;
+    state = wang_hash(seed ^ (uint(uRayOffset + id.x) * 2699u));
+
+
+    uint idx = uProbeOffset + id.y;
+    AudioProbe probe = aprobes[idx];
+    uint ray_index = id.x + uRayOffset;
+
+    vec3 pos = probe.pos;
+    vec3 dir = normalize(generate_sphere_dir(int(ray_index), int(uIterations)));
+    vec3 inv_dir = 1.0f/dir;
+    float dist = 0.0f;
+    float energy[6] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    float abs_energy[6] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    uint offset = id.y * uMaxSamplesPerProbe + ray_index * uBounces;
+    RayHit temp_hit;
+    
+    for (int i = 0; i < uBounces; i++)
+    {
+        
+        hit.hit = false;
+        hit.t = 100000;
+        hit.best_t = 1000000;
+        hit.blocked_t = 1000000;
+        hit.tri_idx = 0;
+        hit.mn_idx = 0;
+        hit.occluded = false;
+        uint sample_idx = offset + i;
+        traverse_scene_bvh(pos, dir, inv_dir, 0, 0, 0);
+        if (hit.hit)
+        {
+
+            float specular = 0.9f;
+            float absorption = 0.1f;
+            dist += hit.t;
+            MeshNode temp_mn = mesh_nodes[hit.mn_idx];
+            Face tri = tris[hit.tri_idx];
+            hit.normal = mat3(transpose(temp_mn.inverse_global_matrix)) * tri.normal;
+            hit.pos = (temp_mn.global_matrix * vec4(hit.pos, 1.0)).xyz;
+            Material mat = materials[tri.material_id];
+            temp_hit = hit;
+
+
+
+            vec3 hit_to_probe = probe.pos - temp_hit.pos;
+            float dist_to_probe = length(hit_to_probe);
+            vec3 arrival_dir = hit_to_probe / dist_to_probe;
+
+
+            const float AIR_ABSORPTION_PER_METER = 0.05f; 
+
+            float total_dist = dist + dist_to_probe;
+
+            float high_freq_damping = exp(-AIR_ABSORPTION_PER_METER * total_dist);
+
+            float attenuation = 1.0f / max(1.0f, dist_to_probe * dist_to_probe);
+
+
+            samples[sample_idx].pos = temp_hit.pos;
+            samples[sample_idx].arrival_dir = arrival_dir;
+            samples[sample_idx].time_of_flight = (dist + dist_to_probe) / SPEED_OF_SOUND;
+
+            samples[sample_idx].valid = 1;
+
+            
+            pos = temp_hit.pos + temp_hit.normal * 0.001f;
+
+            hit.hit = false;
+            hit.t = 100000;
+            hit.best_t = 1000000;
+            hit.blocked_t = 1000000;
+            hit.tri_idx = 0;
+            hit.mn_idx = 0;
+            hit.occluded = false;
+            traverse_scene_bvh(pos, arrival_dir, 1.0f/arrival_dir, 0, 0, 0);
+
+            if (hit.hit)
+            {
+                if (hit.t < dist_to_probe)
+                {
+                    samples[sample_idx].valid = 0;
+                }
+            }
+
+            float avg_scattering = 0.0f;
+            for (int i = 0; i < AUDIO_NUM_BANDS; i++)
+            {
+                avg_scattering += mat.scattering_coefficients[i];
+            }
+            avg_scattering /= AUDIO_NUM_BANDS;
+
+            bool diffuse = (rand() < avg_scattering);
+            if (diffuse)
+            {
+                dir = get_bounce_direction(temp_hit.normal);
+            }
+            else
+            {
+                dir = reflect(dir, temp_hit.normal);
+            }
+
+            float current_energy = 0.0f;
+            for (int b = 0; b < 6; b++) {
+
+                float S = mat.scattering_coefficients[b];
+
+                if (diffuse)
+                {
+                    energy[b] *= (S / max(0.001f, avg_scattering));
+                }
+                else
+                {
+                    energy[b] *= ((1.0f - S) / max(0.001f, 1.0f - avg_scattering));
+                }
+
+                energy[b] *= (1.0f - mat.absorption_coefficients[b]);
+                abs_energy[b] *= (1.0f - mat.absorption_coefficients[b]);
+                
+                samples[sample_idx].energy[b] = energy[b] * attenuation;
+                samples[sample_idx].abs_energy[b] = abs_energy[b];
+                current_energy += energy[b] * energy[b];
+            }            
+
+            energy[3] *= min(high_freq_damping * 1.5f, 1.0f);
+            energy[4] *= min(high_freq_damping * 1.1f, 1.0f);
+            energy[5] *= high_freq_damping;
+            
+
+            inv_dir = 1.0f/dir;
+
+            
+            if (sqrt(current_energy) < 0.0001f)
+            {
+                break;
+            }
+            
+        }
+        else
+        {
+            break;
+        }
+
+        
+
+    }
+
+    
+
+    
+}

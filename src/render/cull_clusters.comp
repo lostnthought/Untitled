@@ -1,0 +1,150 @@
+
+#version 430 core
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+layout(std140, binding = 0) uniform CameraData {
+    vec4 cam_pos;
+    vec4 cam_vel;
+    mat4 projection;
+    mat4 unjittered_projection;
+    mat4 view;
+    mat4 inv_projection;
+    mat4 unjittered_inv_projection;
+    mat4 inv_view;
+};
+layout(std140, binding = 1) uniform RenderingData {
+    ivec4 resolution;
+};
+layout(std140, binding = 2) uniform LightCameraData {
+    vec4 light_cam_pos;
+    vec4 light_cam_vel;
+    mat4 light_projection;
+    mat4 light_unjittered_projection;
+    mat4 light_view;
+    mat4 light_inv_projection;
+    mat4 light_unjittered_inv_projection;
+    mat4 light_inv_view;
+};
+
+layout(std140, binding = 4) uniform PrevCameraData {
+    vec4 prev_cam_pos;
+    vec4 prev_cam_vel;
+    mat4 prev_projection;
+    mat4 prev_unjittered_projection;
+    mat4 prev_view;
+    mat4 prev_inv_projection;
+    mat4 prev_unjittered_inv_projection;
+    mat4 prev_inv_view;
+};
+
+
+struct Light
+{
+    
+    vec3 pos;
+    uint entity_id;
+
+    vec3 dir;
+    float outer_cos;
+    
+    vec3 color;
+    float cos_diff;
+
+    float intensity;
+    uint light_type;
+    float inner_angle;
+    float outer_angle;
+
+    float radius;
+    uint layer;
+    uint mesh;
+    uint tri;
+
+    float area;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+
+};
+layout(std430, binding = 0) buffer LightData {
+
+    Light lights[];
+
+};
+
+struct AABB
+{
+    vec4 min;
+    vec4 max;
+};
+
+layout(std430, binding = 12) buffer ClusterAABBData {
+    AABB cluster_AABBs[];
+};
+layout(std430, binding = 13) buffer GlobalLightIndexData {
+    uint global_light_indices[];
+};
+struct Cluster
+{
+    
+    uint offset;
+    uint count;
+};
+
+layout(std430, binding = 14) buffer ClusterData {
+    Cluster clusters[];
+};
+
+
+
+uniform uvec3 uGridSize;
+uniform float uNear;
+uniform float uFar;
+
+
+uniform uint uMaxLightsPerCluster;
+uniform uint uLightCount;
+
+bool test_sphere_aabb(vec3 light_pos, float light_radius, vec4 min, vec4 max)
+{
+    
+    vec3 closest_point = clamp(light_pos, min.xyz, max.xyz);
+    
+    vec3 delta = light_pos - closest_point;
+    
+    return dot(delta, delta) <= (light_radius * light_radius);
+}
+void main()
+{
+    
+    uvec3 coord = gl_GlobalInvocationID.xyz;
+    if (coord.x >= uGridSize.x || coord.y >= uGridSize.y || coord.z >= uGridSize.z) return;
+
+    uint index = coord.x + (coord.y * uGridSize.x) + (coord.z * uGridSize.x * uGridSize.y);    
+
+    AABB cluster_aabb = cluster_AABBs[index];
+    
+    uint offset = index * uMaxLightsPerCluster;
+    uint visible_count = 0;
+
+    for (int i = 0; i < uLightCount; i++)
+    {
+        Light l = lights[i];
+        if (l.light_type != 0) continue;
+
+        vec4 view_space_light = view * vec4(l.pos, 1.0);
+        vec3 light_pos_view_space = view_space_light.xyz;
+        
+        if (test_sphere_aabb(light_pos_view_space, l.radius, cluster_aabb.min, cluster_aabb.max))
+        {
+            global_light_indices[offset + visible_count] = i;
+            visible_count++;
+            if (visible_count >= uMaxLightsPerCluster) break;
+        }        
+    }
+
+    clusters[index].offset = offset;
+    clusters[index].count = visible_count;
+
+    
+}

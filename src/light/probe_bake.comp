@@ -1,0 +1,1275 @@
+
+#version 430 core
+#extension GL_ARB_bindless_texture : require
+
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+
+struct Light
+{
+    
+    vec3 pos;
+    uint entity_id;
+
+    vec3 dir;
+    float outer_cos;
+    
+    vec3 color;
+    float cos_diff;
+
+    float intensity;
+    uint light_type;
+    float inner_angle;
+    float outer_angle;
+
+    float radius;
+    uint layer;
+    uint mesh;
+    uint tri;
+
+    float area;
+    uint bvh_index;
+    uint dynamic;
+    uint pad2;
+
+};
+
+layout(std430, binding = 0) buffer LightData {
+
+    Light lights[];
+
+};
+
+struct Material
+{
+    
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 emissive;
+
+    float absorption_coefficients[6];
+    uint pad0;
+    uint pad1;
+    float scattering_coefficients[6];
+    uint pad2;
+    uint pad3;
+
+    sampler2D albedo_tex;
+    sampler2D normal_tex;
+    sampler2D arm_tex;
+    sampler2D emissive_tex;
+    
+    float metallic;
+    float roughness;
+    float ao_strength;
+    float normal_scale;
+    uint alpha_mode;
+    float alpha_cutoff;
+    uint double_sided;
+    float emissive_strength;
+
+};
+
+layout(std430, binding = 2) buffer MaterialData {
+    Material materials[];
+};
+
+
+
+struct Vertex {
+
+    vec3 pos;
+    uint pad0;
+    vec3 normal;
+    uint pad1;
+    vec2 uv;
+    uint pad2;
+    uint pad3;
+
+};
+
+layout(std430, binding = 4) buffer VertexData {
+    Vertex vertices[];
+};
+
+struct Face {
+
+    uvec3 indices;
+    uint material_id;
+    vec3 normal;
+    uint mesh_id;
+    uint bvh_index;
+    uint tri_idx;
+    uint pad0;
+    uint pad1;
+    Vertex v0;
+    Vertex v1;
+    Vertex v2;
+
+};
+
+layout(std430, binding = 5) buffer TriData {
+    Face tris[];
+};
+
+struct MeshNode {
+
+    uint mesh_node_id;
+    uint mesh_id;
+
+    uint node_count;
+    uint node_offset;
+    uint vertex_offset;
+    uint vertex_count;
+    uint tri_offset;
+    uint tri_count;
+    uint bvh_index;
+    uint is_static;
+    uint skip_directional_light;
+    uint pad2;
+
+    mat4 global_matrix;
+    mat4 inverse_global_matrix;
+
+};
+
+layout(std430, binding = 6) buffer MeshData {
+    MeshNode mesh_nodes[];
+};
+
+struct AABB
+{
+
+    vec3 min;
+    uint pad0;
+    vec3 max;
+    uint pad1;
+    vec3 center;
+    uint pad2;
+    vec3 extents;
+    uint pad3;
+    
+};
+
+
+struct BVHNode
+{
+
+    int left;
+    int right;
+    int parent;
+    int index;
+
+    int first_index;
+    int count;
+    int next;
+    float flux;
+
+    vec3 min;
+    float emissive_flux;
+    vec3 max;
+    uint pad2;
+    vec3 center;
+    uint pad3;
+    vec3 extents;
+    uint pad4;
+
+};
+
+layout(std430, binding = 7) buffer MeshBVHData {
+    BVHNode mesh_bvh_nodes[];
+};
+
+layout(std430, binding = 8) buffer SceneBVHData {
+    BVHNode scene_bvh_nodes[];
+};
+
+
+struct SHData
+{
+    vec3 pos;
+    uint pad0;
+    vec4 coefficients[9];
+};
+
+layout(std430, binding = 9) buffer ProbeData {
+    SHData probes[];
+};
+
+
+layout(std430, binding = 10) buffer LightBVHData {
+    BVHNode light_bvh_nodes[];
+};
+
+uniform samplerCube uSkybox;
+
+uniform ivec2 uTileOffset;
+uniform int uLightCount;
+uniform vec3 uWorldMin;
+
+uniform ivec3 uProbeSize;
+uniform int uCurrentIteration;
+uniform int uIterations;
+
+uniform float uSpacing;
+
+
+#define MINIMUM_LIGHT_VISIBILITY_DIST 0.1
+
+struct RayHit
+{
+    vec3 pos;
+    float t;
+    vec3 barycentrics;
+    uint mn_idx;
+    vec3 normal;
+    uint tri_idx;
+    float best_t;
+    float blocked_t;
+    bool hit;
+    bool occluded;
+    uint pad1;
+    
+};
+
+
+
+uint state = 0;
+
+uint pcg_hash() {
+    state = state * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+
+uint wang_hash(uint seed) {
+    seed = (seed ^ 61u) ^ (seed >> 16u);
+    seed *= 9u;
+    seed = seed ^ (seed >> 4u);
+    seed *= 0x27d4eb2du;
+    seed = seed ^ (seed >> 15u);
+    return seed;
+}
+
+float rand() {
+    return float(pcg_hash()) / 4294967296.0;
+}
+
+void frisvad_basis(in vec3 n, out vec3 b1, out vec3 b2) {
+    if (n.z < -0.99998796f) { 
+        b1.x = 0.0f; b1.y = -1.0f; b1.z = 0.0f;
+        b2.x = -1.0f; b2.y = 0.0f; b2.z = 0.0f;
+        return;
+    }
+
+    float a = 1.0f / (1.0f + n.z);
+    float b = -n.x * n.y * a;
+
+    b1.x = 1.0f - n.x * n.x * a;
+    b1.y = b;
+    b1.z = -n.x;
+
+    b2.x = b;
+    b2.y = 1.0f - n.y * n.y * a;
+    b2.z = -n.y;
+}
+
+vec3 get_bounce_direction(vec3 normal) {
+    float r1 = rand();
+    float r2 = rand();
+
+    float phi = 2.0 * 3.14159265 * r1;
+    float x = cos(phi) * sqrt(r2);
+    float y = sin(phi) * sqrt(r2);
+    float z = sqrt(1.0 - r2);
+    vec3 local_dir = vec3(x, y, z);
+
+    vec3 tangent;
+    vec3 bitangent;
+    if (abs(normal.z) > 0.999)
+    {
+        
+        frisvad_basis(normal, tangent, bitangent);
+    }
+    else
+    {
+        
+        vec3 up = abs(normal.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        tangent = normalize(cross(up, normal));
+        bitangent = cross(normal, tangent);
+    }
+    
+    mat3 TBN = mat3(tangent, bitangent, normal);
+    
+    return normalize(TBN * local_dir);
+}
+vec3 generate_sphere_dir(int i, int N)
+{
+    
+    float phi = 3.14159265 * (3.0f - sqrt(5.0f));
+
+    float y = 1.0f - 2.0f*(i+0.5f)/N;
+
+    float r = sqrt(1-y*y);
+
+    float theta = phi*i;
+
+    return vec3(cos(theta) * r, y, sin(theta) * r);
+}
+
+RayHit hit;
+
+bool ray_intersects_triangle(vec3 origin, vec3 dir, vec3 a, vec3 b, vec3 c, out RayHit out_hit)
+{
+
+
+    out_hit.hit = false;
+
+    vec3 edge1 = b-a;
+    vec3 edge2 = c-a;
+    vec3 h = cross(dir, edge2);
+    float dA = dot(edge1, h);
+
+    if (abs(dA) < 0.000001f) {
+        return false;
+    }
+
+    float f = 1.0f / dA;
+    vec3 s = origin - a;
+    float u = f * dot(s, h);
+    if (u < 0.0f || u > 1.0f) {
+        return false;
+    }
+
+    vec3 q = cross(s, edge1);
+    float v = f * dot(dir, q);
+    if (v < 0.0f || u + v > 1.0f) {
+        return false;
+    }
+
+    float t = f * dot(edge2, q);
+    if (t > 0.0f) {
+        out_hit.t = t;
+
+        float w = 1.0f - u - v;
+        out_hit.pos = a * w + b * u + c * v;
+        out_hit.barycentrics = vec3(w, u, v);
+        out_hit.hit = true;
+        
+        return true;
+    }
+
+    return false;
+}
+
+
+
+
+bool slab_test(BVHNode n, vec3 pos, vec3 inv_dir) {
+    vec3 t1 = (n.min - pos) * inv_dir;
+    vec3 t2 = (n.max - pos) * inv_dir;
+
+    vec3 tmin = min(t1, t2);
+    vec3 tmax = max(t1, t2);
+
+    float t_near = max(max(tmin.x, tmin.y), tmin.z);
+    float t_far  = min(min(tmax.x, tmax.y), tmax.z);
+
+    return t_far >= max(0.0f, t_near) && t_near < hit.t;
+}
+vec2 get_uvs(vec3 B, uint tri_idx)
+{
+    
+    Face tri = tris[tri_idx];
+    Vertex v0 = tri.v0;
+    Vertex v1 = tri.v1;
+    Vertex v2 = tri.v2;
+
+    vec3 b = B;
+    vec2 hit_uv = v0.uv * b.x + v1.uv * b.y + v2.uv * b.z;
+    return hit_uv;
+}
+vec2 get_hit_uvs(in Face tri, in RayHit hit)
+{
+
+    vec3 b = hit.barycentrics;
+    vec2 hit_uv = tri.v0.uv * b.x + tri.v1.uv * b.y + tri.v2.uv * b.z;
+    return hit_uv;
+    
+}
+vec4 get_hit_albedo(in Material mat, vec2 hit_uv) {
+
+    vec4 albedo = texture(mat.albedo_tex, hit_uv) * mat.diffuse;
+
+    return albedo;
+}
+vec3 get_hit_emissive(in Material mat, vec2 hit_uv) {
+
+    vec3 emissive = texture(mat.emissive_tex, hit_uv).rgb * mat.emissive.rgb * mat.emissive_strength;
+
+    return emissive;
+}
+
+
+void traverse_mesh_bvh(uint node_offset, uint mn_id, vec3 pp, vec3 pm, vec3 original_dir, vec3 dir, vec3 md, uint mesh, uint tri)
+{
+
+    int ni = int(node_offset);
+    while (ni >= 0)
+    {
+        BVHNode n = mesh_bvh_nodes[ni];
+
+        if (!slab_test(n, pm, md))
+        {
+            ni = n.next;
+            continue;
+        }
+
+        if (n.left == -1 && n.right == -1)
+        {
+            for (int i = 0; i < n.count; i++)
+            {
+
+                uint tri_idx = tris[i + n.first_index].bvh_index;
+                Face f = tris[tri_idx];
+                
+                vec3 a = f.v0.pos;
+                vec3 b = f.v1.pos;
+                vec3 c = f.v2.pos;
+
+                RayHit current_hit;
+                bool did_hit = ray_intersects_triangle(pm, dir, a, b, c, current_hit);
+                if (!did_hit) continue;
+
+
+                if (current_hit.t < hit.best_t)
+                {
+                    hit.occluded = true;
+                    hit.best_t = current_hit.t;
+                }
+                bool col = (current_hit.t < hit.t);
+                
+                bool dot_test = dot(f.normal, dir) <= 0.0f;
+                vec2 uvs = get_hit_uvs(f, current_hit);
+                Material mat = materials[f.material_id];
+                vec4 albedo = get_hit_albedo(mat, uvs);
+                if (dot_test || albedo.a < 1.0f)
+                {
+                    if (col)
+                    {
+                        float temp_best_t = hit.best_t;
+                        float temp_blocked_t = hit.blocked_t;
+                        hit = current_hit;
+                        hit.occluded = true;
+                        hit.best_t = temp_best_t;
+                        hit.blocked_t = temp_blocked_t;
+                        hit.mn_idx = mn_id;
+                        hit.tri_idx = tri_idx;
+                        hit.normal = f.normal;
+                        hit.hit = true;
+                        
+                    }
+                }
+                else
+                {
+                    if (current_hit.t < hit.blocked_t)
+                    {
+
+                        hit.blocked_t = current_hit.t;
+                        hit.hit = true;
+                    }
+
+                    hit.occluded = true;
+                    
+                }
+            }
+            ni = n.next;
+        }
+        else
+        {
+                
+            ni = n.left;
+        }
+
+        
+    }
+
+    
+    
+}
+
+
+void traverse_scene_bvh(vec3 pp, vec3 dir, vec3 inv_dir, uint light_type, uint mesh, uint tri)
+{
+    int ni = 0;
+    while (ni >= 0 )
+    {
+        BVHNode n = scene_bvh_nodes[ni];
+        
+        if (!slab_test(n, pp, inv_dir))
+        {
+            ni = n.next;
+            continue;
+        }
+
+        if (n.left == -1 && n.right == -1)
+        {
+            for (int i = 0; i < n.count; i++)
+            {
+
+                MeshNode mn = mesh_nodes[mesh_nodes[i + n.first_index].bvh_index];
+                if (mn.is_static == 0) continue;
+                if (mn.mesh_id == -1) continue;
+
+                mat4 inverse_matrix = mn.inverse_global_matrix;
+                vec3 pm = (inverse_matrix * vec4(pp, 1.0)).xyz;
+                vec3 md = (inverse_matrix * vec4(dir, 0.0)).xyz;
+                vec3 inv_md = 1.0f / md;
+
+                traverse_mesh_bvh(mn.node_offset, mn.mesh_node_id, pp, pm, dir, md, inv_md, mesh, tri);
+            }
+            ni = n.next;
+            
+        }
+        else
+        {
+            ni = n.left;
+        }
+    }
+    
+}
+
+vec3 compute_3d_barycentric(vec3 a, vec3 b, vec3 c, vec3 p)
+{
+
+    vec3 v0 = b - a;
+    vec3 v1 = c - a;
+    vec3 v2 = p - a;
+
+    vec3 tn = cross(v0, v1);
+    float ta = length(tn);
+
+    float wwC = length(cross(v0, v2)) / ta;
+    float wwB = length(cross(v2, v1)) / ta;
+    float wwA = 1.0f - wwB - wwC;
+    return vec3(wwA, wwB, wwC);
+    
+}
+
+float CalculateAttenuation(float distance, float radius, float intensity) {
+    float attenuation = intensity / (distance  + 1.0);
+    
+    float factor = distance / (radius * radius);
+    float window = clamp(1.0 - factor * factor * factor * factor, 0.0, 1.0);
+    window = window * window; 
+    
+    return attenuation * window;
+}
+
+
+vec3 solve_light_source(Light l, vec3 pos, vec3 normal, uint mesh, uint tri)
+{
+    vec3 L;
+    float d2;
+    float d;
+    float safe_d2;
+    // directional
+    uint light_type = l.light_type;
+    if (l.light_type == 1)
+    {
+        L = l.dir;
+        d2 = 1;
+        d = 1;
+        
+        safe_d2 = 1;
+    }
+    else
+    {
+        L = (l.pos - pos);
+        d2 = dot(L, L);
+        if (d2 > l.radius * l.radius && l.light_type == 0) return vec3(0,0,0);
+
+        
+        float min_radius = 0.05f; 
+        safe_d2 = max(d2, min_radius * min_radius);        
+    }
+
+    L = normalize(L);
+    vec3 inv_dir = 1.0f / L;
+
+    vec3 pp = pos + normal * 0.001f;
+
+    vec3 throughput = vec3(1.0);
+    
+    bool hit_light = false;
+    int safety = 10;
+    int cur = 0;
+    while (!hit_light && cur < safety)
+    {
+        cur++;
+        
+        hit.hit = false;
+        hit.t = 100000;
+        hit.best_t = 1000000;
+        if (l.light_type != 1)
+        {
+            hit.t = d;
+            hit.best_t = d;
+            hit.blocked_t = d;
+
+        }
+        hit.blocked_t = 1000000;
+        hit.tri_idx = 0;
+        hit.mn_idx = 0;
+        hit.occluded = false;
+
+        traverse_scene_bvh(pp, L, inv_dir, light_type, mesh, tri);
+
+        if (hit.hit && l.light_type == 1 || (l.light_type != 1 && hit.hit && hit.t < d))
+        {
+            
+            Face hit_tri = tris[hit.tri_idx];
+            uint mat_id = hit_tri.material_id;
+            vec2 hit_uv = get_hit_uvs(hit_tri, hit);
+            Material mat = materials[mat_id];
+            vec4 albedo = get_hit_albedo(mat, hit_uv);
+            if (albedo.a < 1.0f)
+            {
+                throughput *= albedo.rgb;
+                MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+                hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+                pp = hit.pos + L * 0.001f;
+                d = length(pp - l.pos);
+            }
+            else
+            {
+                break;
+            }
+
+        }
+        else
+        {
+            hit_light = true;
+        }
+        
+
+    }
+    
+
+    vec3 lighting = l.color * max(dot(normal, L), 0.0f) * throughput;
+    if (!hit_light) return vec3(0,0,0);
+    
+    if (l.light_type == 1)
+    {
+        lighting *= l.intensity;
+    }
+    else if (l.light_type == 0)
+    {
+        lighting *= CalculateAttenuation(d2, l.radius, l.intensity);
+    }
+    else
+    {
+
+        float theta = dot(-L, l.dir);
+
+        float intensity = clamp((theta - l.outer_cos) * l.cos_diff, 0.0f, 1.0f);
+        lighting /= max(safe_d2, 0.001);
+        lighting *= intensity;
+        lighting *= l.intensity;
+        
+    }
+    
+    return lighting;
+    
+}
+
+vec3 random_pos_on_triangle(vec3 a, vec3 b, vec3 c)
+{
+    float r1 = rand(); 
+    float r2 = rand();
+
+    float sqrt_r1 = sqrt(r1);
+    return (1.0 - sqrt_r1) * a + (sqrt_r1 * (1.0 - r2)) * b + (sqrt_r1 * r2) * c;    
+    
+}
+
+vec3 process_area_light(in Light light, vec3 pos, vec3 normal, vec3 brdf, float p_select, bool skip_normal)
+{
+    
+    MeshNode mn = mesh_nodes[light.mesh];
+    Face f = tris[mn.tri_offset + light.tri];
+    
+    vec3 area_normal = mat3(transpose(mn.inverse_global_matrix)) * f.normal;
+    vec3 A = (mn.global_matrix * vec4(f.v0.pos, 1.0)).xyz;
+    vec3 B = (mn.global_matrix * vec4(f.v1.pos, 1.0)).xyz;
+    vec3 C = (mn.global_matrix * vec4(f.v2.pos, 1.0)).xyz;
+    vec3 random_pos = random_pos_on_triangle(A, B, C);
+    vec3 bary = compute_3d_barycentric(A, B, C, random_pos);
+    vec2 uvs = get_uvs(bary, mn.tri_offset + light.tri);
+    Material mat = materials[f.material_id];
+    vec3 emission = get_hit_emissive(mat, uvs);
+    vec3 diff = random_pos - pos;
+    float dist = length(diff);
+    float d2 = (dist * dist);
+    vec3 L = diff / dist;
+    vec3 inv_dir = 1.0f / L;
+    bool hit_light = false;
+    int cur = 0;
+    int safety = 10;
+    vec3 pp = pos + normal * 0.01f;
+    vec3 throughput = vec3(1.0);
+    while (!hit_light && cur < safety)
+    {
+        cur++;
+        
+        hit.hit = false;
+        hit.t = dist;
+        hit.best_t = dist;
+        hit.blocked_t = 1000000;
+        hit.tri_idx = 0;
+        hit.mn_idx = 0;
+        hit.occluded = false;
+
+        traverse_scene_bvh(pp, L, inv_dir, 3, 0, 0);
+
+        if (hit.hit && hit.t < dist)
+        {
+
+            MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+            Face hit_tri = tris[hit.tri_idx];
+            vec2 hit_uv = get_hit_uvs(hit_tri, hit);
+            uint mat_id = hit_tri.material_id;
+            Material hit_mat = materials[mat_id];
+            vec4 albedo = get_hit_albedo(hit_mat, hit_uv);
+            if (hit.blocked_t < hit.t)
+            {
+                return vec3(0,0,0);
+            }
+            if (albedo.a < 1.0f)
+            {
+                throughput *= albedo.rgb;
+                MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+                hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+                pp = hit.pos + L * 0.001f;
+                diff = random_pos - pp;
+                dist = length(diff);
+            }
+            else
+            {
+                vec3 emissive = get_hit_emissive(hit_mat, hit_uv);
+                hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+                if (length(emissive) == 0 && f.material_id != mat_id)
+                {
+            
+                    return vec3(0,0,0);
+                }
+                else
+                {
+                    area_normal = hit.normal;
+                    hit_light = true;
+                }
+            }
+
+        }
+        else
+        {
+            hit_light = true;
+        }
+
+    }
+    float cos_light = dot(area_normal, -L);
+    if (cos_light <= 0.001)
+    {
+        return vec3(0,0,0);
+    }
+
+    float cos_surface = max(0.0, dot(normal, L));
+    vec3 color = (emission * brdf * throughput * cos_light * cos_surface * light.area) / (d2 * p_select);
+    return color;
+}
+
+vec3 process_light(vec3 pos, vec3 normal, uint mesh, uint tri, vec3 brdf, Light light, float p_select)
+{
+
+
+    if (light.light_type == 0)
+    {
+        
+        return solve_light_source(light, pos, normal, mesh, tri) * brdf / p_select; 
+    }
+    else if (light.light_type == 1)
+    {
+        return vec3(0,0,0);
+         
+    }
+    else if (light.light_type == 2)
+    {
+        
+        return solve_light_source(light, pos, normal, mesh, tri) * brdf / p_select; 
+    }
+    else
+    {
+        return process_area_light(light, pos, normal, brdf, p_select, false);
+        
+    }
+    return vec3(0.0);
+    
+}
+
+
+
+
+vec3 closest_point_on_aabb(vec3 pos, vec3 min, vec3 max)
+{
+    return clamp(pos, min, max);
+}
+
+bool pos_inside_aabb(vec3 pos, vec3 min, vec3 max)
+{
+    if (pos.x >= min.x && pos.x <= max.x &&
+        pos.y >= min.y && pos.y <= max.y &&
+        pos.z >= min.z && pos.z <= max.z) return true;
+    return false;
+}
+
+vec3 traverse_light_bvh(vec3 pos, vec3 normal, uint mesh, uint tri, vec3 brdf)
+{
+
+    int ni = 0;
+    float pdf = 1.0f;
+
+
+    int dir_light_idx = -1;
+    for (int i = 0; i < uLightCount; i++)
+    {
+
+        if (lights[i].light_type == 1)
+        {
+            dir_light_idx = i;
+            break;
+        }
+        
+    }
+    
+   
+    
+    vec3 color = vec3(0.0);
+    while (ni >= 0)
+    {
+
+        BVHNode n = light_bvh_nodes[ni];
+        
+
+        if (n.left == -1 && n.right == -1)
+        {
+            int random_light_idx = int(rand() * n.count);
+            if (random_light_idx >= n.count) random_light_idx = n.count-1;
+            
+            uint index = lights[n.first_index + random_light_idx].bvh_index;
+            Light l = lights[index];
+                
+            color = process_light(pos, normal, mesh, tri, brdf, l, pdf);
+            
+            break;
+        }
+        else
+        {
+            
+            BVHNode n0 = light_bvh_nodes[n.left];
+            BVHNode n1 = light_bvh_nodes[n.right];
+
+            vec3 closest_n0 = closest_point_on_aabb(pos, n0.min, n0.max);
+            vec3 closest_n1 = closest_point_on_aabb(pos, n1.min, n1.max);
+
+            vec3 diff_n0 = pos - closest_n0;
+            vec3 diff_n1 = pos - closest_n1;
+
+            float dist2_n0 = dot(diff_n0, diff_n0);
+            float dist2_n1 = dot(diff_n1, diff_n1);
+
+            dist2_n0 = max(dist2_n0, 0.001f);
+            dist2_n1 = max(dist2_n1, 0.001f);
+            
+            float importance_n0 = n0.flux / dist2_n0;
+            float importance_n1 = n1.flux / dist2_n1;
+
+            float sum = importance_n0 + importance_n1;
+            if (sum <= 0.0f)
+            {
+                importance_n0 = 0.5f;
+                importance_n1 = 0.5f;
+                sum = 1.0f;
+            }
+            float norm_n0 = importance_n0 / sum;
+            float norm_n1 = importance_n1 / sum;
+            
+            float p = rand();
+            if (p < norm_n0)
+            {
+                // enter left
+                pdf *= max(norm_n0, 0.0001f);
+                ni = n.left;
+                continue;
+            }
+            else
+            {
+                // enter right
+                pdf *= max(norm_n1, 0.0001f);
+                ni = n.right;
+                continue;
+            }
+        }
+    }
+    if (length(color) <= 0.0f && dir_light_idx != -1)
+    {
+        
+        Light directional_light = lights[dir_light_idx];
+        float lum = dot(directional_light.color, vec3(0.2126f, 0.7152f, 0.0722f));
+        float flux_dir = lum * directional_light.intensity;
+        BVHNode n_root = light_bvh_nodes[0];
+        float importance_n_root = n_root.flux;
+        float sum_imp = flux_dir + importance_n_root;
+        float norm_dir = flux_dir / sum_imp;
+        float norm_root = importance_n_root / sum_imp;
+    
+        float p = rand();
+        pdf = max(norm_dir, 0.0001f);
+    
+        return solve_light_source(directional_light, pos, normal, mesh, tri) * brdf ; 
+    }
+    
+    return color;
+    
+}
+
+
+vec3 traverse_light_bvh_direct_emissives(vec3 pos, vec3 normal, vec3 brdf)
+{
+    
+    int ni = 0;
+    float pdf = 1.0f;
+    while (ni >= 0)
+    {
+
+        BVHNode n = light_bvh_nodes[ni];
+        
+
+        if (n.left == -1 && n.right == -1)
+        {
+            int random_light_idx = int(rand() * n.count);
+            if (random_light_idx >= n.count) random_light_idx = n.count-1;
+            
+            uint index = lights[n.first_index + random_light_idx].bvh_index;
+            Light l = lights[index];
+            vec3 color = process_area_light(l, pos, normal, brdf, max(pdf, 0.00001f), true);
+            
+            return color;
+        }
+        else
+        {
+            
+            BVHNode n0 = light_bvh_nodes[n.left];
+            BVHNode n1 = light_bvh_nodes[n.right];
+
+            vec3 closest_n0 = closest_point_on_aabb(pos, n0.min, n0.max);
+            vec3 closest_n1 = closest_point_on_aabb(pos, n1.min, n1.max);
+
+            vec3 diff_n0 = pos - closest_n0;
+            vec3 diff_n1 = pos - closest_n1;
+
+            float dist2_n0 = dot(diff_n0, diff_n0);
+            float dist2_n1 = dot(diff_n1, diff_n1);
+
+            dist2_n0 = max(dist2_n0, 0.001f);
+            dist2_n1 = max(dist2_n1, 0.001f);
+            
+            float importance_n0 = n0.emissive_flux / dist2_n0;
+            float importance_n1 = n1.emissive_flux / dist2_n1;
+
+            float sum = importance_n0 + importance_n1;
+            if (sum <= 0.0f)
+            {
+                importance_n0 = 0.5f;
+                importance_n1 = 0.5f;
+                sum = 1.0f;
+            }
+            float norm_n0 = importance_n0 / sum;
+            float norm_n1 = importance_n1 / sum;
+            
+            float p = rand();
+            if (p < norm_n0)
+            {
+                // enter left
+                pdf *= max(norm_n0, 0.0001f);
+                ni = n.left;
+                continue;
+            }
+            else
+            {
+                // enter right
+                pdf *= max(norm_n1, 0.0001f);
+                ni = n.right;
+                continue;
+            }
+        }
+    }
+    
+    return vec3(0.0);
+    
+}
+
+
+vec3 resolve_transparents(vec3 throughput, vec3 pos, vec3 dir, vec3 inv_dir)
+{
+    bool hit_surface = false;
+    int safety = 10;
+    int cur = 0;
+    while (!hit_surface && cur < safety)
+    {
+        cur++;
+        
+        hit.hit = false;
+        hit.t = 100000;
+        hit.best_t = 1000000;
+        hit.blocked_t = 1000000;
+        hit.tri_idx = 0;
+        hit.mn_idx = 0;
+        hit.occluded = false;
+
+        traverse_scene_bvh(pos, dir, inv_dir, 0, 0, 0);
+
+        if (hit.hit && hit.blocked_t >= hit.t)
+        {
+            
+            Face hit_tri = tris[hit.tri_idx];
+            uint mat_id = hit_tri.material_id;
+            vec2 hit_uv = get_hit_uvs(hit_tri, hit);
+            Material mat = materials[mat_id];
+            vec4 albedo = get_hit_albedo(mat, hit_uv);
+            float r = rand();
+            if (r < albedo.a)
+            {
+                break;
+            }
+            else
+            {
+                throughput *= albedo.rgb;
+                MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+                hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+                pos = hit.pos + dir * 0.01f;
+            }
+
+        }
+        else
+        {
+            hit_surface = true;
+        }
+    }
+    return throughput;
+}
+
+
+
+vec3 first_dir;
+
+vec3 trace_path(vec3 pos)
+{
+    vec3 throughput = vec3(1.0);
+    vec3 acc = vec3(0.0);
+    vec3 current_pos;
+    vec3 current_normal;
+    uint current_mn_id;
+    uint current_tri_idx;
+
+    vec3 brdf = vec3(0.5, 0.5, 0.5) * (1.0f / 3.14159265f);
+
+    vec3 dir = generate_sphere_dir(uCurrentIteration, uIterations);
+    dir = normalize(dir);
+    acc += traverse_light_bvh_direct_emissives(pos, dir, brdf);
+
+    first_dir = dir;
+
+    vec3 inv_dir = 1.0/dir;
+    
+    throughput = resolve_transparents(throughput, pos, dir, inv_dir);
+
+    bool skip_bounce = false;
+
+    if (!hit.hit)
+    {
+        if (!hit.occluded)
+        {
+        
+
+            vec3 corrected = vec3(dir.x, dir.z, -dir.y);
+            vec3 sky_light = texture(uSkybox, corrected).rgb;
+            acc += throughput * sky_light;
+        }
+        skip_bounce = true;
+    }
+    else if (hit.blocked_t >= hit.t)
+    {
+        MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+        Face hit_tri = tris[hit.tri_idx];
+        hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+        hit.pos = (hit_mn.global_matrix * vec4(hit.pos, 1.0)).xyz;
+
+        vec3 direct_light = vec3(0.0);
+        uint mat_id = hit_tri.material_id;
+        vec2 hit_uv = get_hit_uvs(hit_tri, hit);
+        Material mat = materials[mat_id];
+        vec4 albedo = get_hit_albedo(mat, hit_uv);
+        vec3 emissive = get_hit_emissive(mat, hit_uv);
+        vec3 brdf = albedo.rgb * (1.0f / 3.14159265f);
+
+        current_pos = hit.pos;
+        current_normal = hit.normal; 
+        current_mn_id = uint(hit.mn_idx);
+        current_tri_idx = uint(hit.tri_idx);
+
+        direct_light += traverse_light_bvh(hit.pos, hit.normal, uint(hit.mn_idx), uint(hit.tri_idx), brdf);
+
+        float max_lum = 10.0;
+        float lum = dot(direct_light, vec3(0.2126, 0.7152, 0.0722));
+        if (lum > max_lum)
+        {
+            direct_light *= max_lum / lum;
+        }
+        acc += throughput * direct_light;
+
+        throughput *= albedo.rgb;
+
+    }
+    else
+    {
+        skip_bounce = true;
+    }
+    
+    
+
+    if (!skip_bounce)
+    {
+        
+        for (int i = 0; i < 1; i++)
+        {
+
+            dir = get_bounce_direction(current_normal);
+            vec3 inv_dir = 1.0/dir;
+            float pdf = dot(dir, current_normal) / 3.14159265f;
+    
+            vec3 pp = current_pos + current_normal * 0.001f;
+
+            throughput = resolve_transparents(throughput, pp, dir, inv_dir);
+            if (!hit.hit)
+            {
+                if (!hit.occluded)
+                {
+            
+
+                    vec3 corrected = vec3(dir.x, dir.z, -dir.y);
+                    vec3 sky_light = texture(uSkybox, corrected).rgb;
+                    acc += throughput * sky_light;
+
+                }
+                break;
+            }
+            else if (hit.blocked_t >= hit.t)
+            {
+
+                MeshNode hit_mn = mesh_nodes[hit.mn_idx];
+                Face hit_tri = tris[hit.tri_idx];
+                hit.normal = mat3(transpose(hit_mn.inverse_global_matrix)) * hit_tri.normal;
+                hit.pos = (hit_mn.global_matrix * vec4(hit.pos, 1.0)).xyz;
+
+                vec3 direct_light = vec3(0.0);
+                uint mat_id = hit_tri.material_id;
+                vec2 hit_uv = get_hit_uvs(hit_tri, hit);
+                Material mat = materials[mat_id];
+                vec4 albedo = get_hit_albedo(mat, hit_uv);
+                vec3 emissive = get_hit_emissive(mat, hit_uv);
+                vec3 brdf = albedo.rgb * (1.0f / 3.14159265f);
+
+                current_pos = hit.pos;
+                current_normal = hit.normal; 
+                current_mn_id = uint(hit.mn_idx);
+                current_tri_idx = uint(hit.tri_idx);
+
+                direct_light += traverse_light_bvh(hit.pos, hit.normal, uint(hit.mn_idx), uint(hit.tri_idx), brdf);
+
+                float max_lum = 10.0;
+                float lum = dot(direct_light, vec3(0.2126, 0.7152, 0.0722));
+                if (lum > max_lum)
+                {
+                    direct_light *= max_lum / lum;
+                }
+                acc += throughput * direct_light; 
+
+                throughput *= albedo.rgb;
+
+
+            }
+            else
+            {
+                break;
+            }
+    
+        }
+    }
+        
+
+
+    return acc;
+    
+}
+
+
+
+void solve_SH(vec3 color, vec3 dir, int index, vec3 pos)
+{
+
+
+    vec3 p0 = color * 0.282095;
+    vec3 p1 = color * 0.488603 * dir.y;
+    vec3 p2 = color * 0.488603 * dir.z;
+    vec3 p3 = color * 0.488603 * dir.x;
+    vec3 p4 = color * 1.092548 * dir.x * dir.y;
+    vec3 p5 = color * 1.092548 * dir.y * dir.z;
+    vec3 p6 = color * 0.315392 * (3 * dir.z * dir.z - 1);
+    vec3 p7 = color * 1.092548 * (dir.x * dir.z);
+    vec3 p8 = color * 0.546274 * (dir.x * dir.x - dir.y * dir.y);
+    
+    probes[index].coefficients[0].xyz += p0;
+    probes[index].coefficients[1].xyz += p1;
+    probes[index].coefficients[2].xyz += p2;
+    probes[index].coefficients[3].xyz += p3;
+    probes[index].coefficients[4].xyz += p4;
+    probes[index].coefficients[5].xyz += p5;
+    probes[index].coefficients[6].xyz += p6;
+    probes[index].coefficients[7].xyz += p7;
+    probes[index].coefficients[8].xyz += p8;
+    
+}
+
+
+
+void main()
+{
+
+    ivec3 coord = ivec3(gl_GlobalInvocationID.xyz);
+    if (coord.x >= uProbeSize.x || coord.y >= uProbeSize.y || coord.z >= uProbeSize.z) return;
+
+    int index = coord.z * uProbeSize.y * uProbeSize.x + coord.y * uProbeSize.x + coord.x;
+    vec3 pos = probes[index].pos;
+
+    uint seed = uint(coord.x) + uint(coord.y) * 1973u + uint(coord.z) * 9277u;
+    state = wang_hash(seed ^ (uint(uCurrentIteration) * 2699u));    
+
+    vec3 ray_color = trace_path(pos);
+
+    solve_SH(ray_color, first_dir, index, pos);
+  
+    
+    
+}

@@ -1,0 +1,54 @@
+
+#version 430 core
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(rgba32f, binding = 0) uniform readonly image2D uLightInTex;
+layout(rgba32f, binding = 1) uniform writeonly image2D uLightOutTex;
+layout(rgba16f, binding = 2) uniform readonly image2D uDirInTex;
+layout(rgba16f, binding = 3) uniform writeonly image2D uDirOutTex;
+uniform isampler2D uLightmapIDTex;
+uniform int uLightmapWidth;
+uniform int uLightmapHeight;
+
+void main() {
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+
+    if (coord.x >= uLightmapWidth || coord.y >= uLightmapHeight) return;
+
+    ivec3 ids = texelFetch(uLightmapIDTex, coord, 0).rgb;
+
+    if (ids.y >= 0) {
+        vec4 color = imageLoad(uLightInTex, coord);
+        imageStore(uLightOutTex, coord, color);
+        vec4 dir = imageLoad(uDirInTex, coord);
+        imageStore(uDirOutTex, coord, dir);
+        return;
+    }
+
+    vec4 accumulated_color = vec4(0.0);
+    vec4 accumulated_dir = vec4(0.0);
+    float valid_neighbors = 0.0;
+
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            if (x == 0 && y == 0) continue;
+
+            ivec2 neighbor_coord = coord + ivec2(x, y);
+            if (neighbor_coord.x < 0 || neighbor_coord.y < 0 || neighbor_coord.x >= uLightmapWidth || neighbor_coord.y >= uLightmapHeight) continue;
+            ivec3 neighbor_ids = texelFetch(uLightmapIDTex, neighbor_coord, 0).rgb;
+            if (neighbor_ids.y >= 0) {
+                accumulated_color += imageLoad(uLightInTex, neighbor_coord);
+                accumulated_dir += imageLoad(uDirInTex, neighbor_coord);
+                valid_neighbors += 1.0;
+            }
+        }
+    }
+
+    if (valid_neighbors > 0.0) {
+        imageStore(uLightOutTex, coord, accumulated_color / valid_neighbors);
+        imageStore(uDirOutTex, coord, accumulated_dir / valid_neighbors);
+    } else {
+        imageStore(uLightOutTex, coord, vec4(0.0));
+        imageStore(uDirOutTex, coord, vec4(0.0));
+    }
+}

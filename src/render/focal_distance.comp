@@ -1,0 +1,104 @@
+#version 430 core
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+
+layout(std140, binding = 0) uniform CameraData {
+    vec4 cam_pos;
+    vec4 cam_vel;
+    mat4 projection;
+    mat4 unjittered_projection;
+    mat4 view;
+    mat4 inv_projection;
+    mat4 unjittered_inv_projection;
+    mat4 inv_view;
+};
+
+struct MeshNode
+{
+    vec4 min;
+    vec4 max;
+    vec4 center;
+    vec4 extents;
+    uint instance_count;
+    uint static_mesh;
+    uint lm_offset;
+    uint material;
+    uint first;
+    uint count;
+    uint pad0;
+    uint pad1;
+};
+
+#define MAX_MESH_NODES 1024
+layout(std430, binding = 15) buffer MeshNodeData {
+
+    float focal_distance;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+    MeshNode mns[MAX_MESH_NODES];
+
+};
+
+uniform sampler2D gDepth;
+uniform vec2 uTexelSize;
+uniform vec2 uResolution;
+uniform float uDT;
+
+vec3 get_view_pos_from_depth(vec2 uv, float depth, mat4 invProjMatrix) {
+    vec4 ndc = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    
+    vec4 viewSpacePos = invProjMatrix * ndc;
+    
+    return viewSpacePos.xyz / viewSpacePos.w;
+}
+
+
+float linearize(float z)
+{
+    float near = 0.1;
+    float far = 1000.0;
+    return (2.0 * near) / (far + near - z * (far - near));
+}
+
+void main()
+{
+    if (gl_GlobalInvocationID.x > 0) return;
+
+    ivec2 uv = ivec2(uResolution/2.0f);
+    vec2 suv = vec2(0.5, 0.5);
+    float old_focal_distance = focal_distance;
+    float acc = 0.0;
+    for (int y = -4; y <= 4; y++)
+    {
+        for (int x = -4; x <= 4; x++)
+        {
+
+            vec2 tuv = vec2(x, y) * uTexelSize;
+            ivec2 current_uv = uv + ivec2(uTexelSize * ivec2(x, y));
+            float depth = texelFetch(gDepth, current_uv, 0).r;
+            vec3 viewPos = get_view_pos_from_depth(suv + tuv, depth, unjittered_inv_projection);
+    
+            float pixelDistance = -(viewPos.z);
+
+            acc += pixelDistance;
+        
+        }
+    }
+
+
+    float d = acc / 81;
+
+    float targetDiopter = 1.0 / max(d, 0.05);
+    float currentDiopter = 1.0 / max(focal_distance, 0.05);
+
+    float blend = 1.0 - exp(-5.0 * uDT);
+
+    currentDiopter = mix(currentDiopter, targetDiopter, blend);
+
+    focal_distance = 1.0 / currentDiopter;    
+
+    
+    
+}
