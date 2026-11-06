@@ -1,5 +1,6 @@
 # Untitled
-A custom 3D game engine made from scratch in C with uv lightmapping, path traced audio, physics, and more. Independently developed entirely on a mobile 1050 to bring high-fidelity graphics to constrained hardware.
+A custom 3D game engine made from scratch in C with uv lightmapping, path traced audio, physics, and more. Independently developed entirely on a mobile 1050 to bring high-fidelity graphics to constrained hardware.  
+### [Docs (Doxygen)](https://lostnthought.github.io/lostnthought/engine-docs/index.html)
 
 ## Features
 - **Rendering:** Clustered forward shading, GPU-driven rendering (MDI), indirect lighting probe volumes, reflection probes, and a software path-traced UV lightmapper using BVH traversal on the GPU.
