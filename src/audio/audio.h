@@ -123,7 +123,7 @@ int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local);
 
 /**
  * @brief Initializes kernels used for IR sample filtering.
- * @param pv The sample rate of audio.
+ * @param sample_rate The sample rate of audio.
  */
 void init_band_kernels(float sample_rate, float f1_hz, float f2_hz, float f3_hz,  float f4_hz, float f5_hz, float out_kernels[AUDIO_NUM_BANDS][AUDIO_KERNEL_SIZE]);
 

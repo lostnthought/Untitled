@@ -29,15 +29,15 @@
 #define VIEW_NEAR 0.1 /**<Near plane for player*/
 #define VIEW_FAR 1000.0 /**<Far plane for player*/
 
-#define MAX_INTERP_APROBES 4 /**<Max audio probes that can be sampled at once*/
-#define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of audio sample emitters*/
+#define MAX_INTERP_APROBES 4 /**<Max AudioProbe%s that can be sampled at once*/
+#define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of AudioEmitter%s*/
 #define SAMPLE_RATE 48000 /**<Audio sample rate*/
 
 #define IR_SAMPLE_RATE 48000 /**<Sample rate for baked audio IRs*/
 #define EDC_SAMPLE_RATE 48000 /**<EDC sample rate for schroeder integration*/
 
 #define SPEED_OF_SOUND 343.0f /**<Speed of sound constant*/
-#define MAX_APROBE_SECONDS 1 /**<Longest amount of audio probe samples when baking*/
+#define MAX_APROBE_SECONDS 1 /**<Longest amount of AudioProbe samples when baking*/
 #define MAX_IR_SAMPLES (IR_SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Maximum IR sample length*/
 #define MAX_EDC_SAMPLES (EDC_SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Maximum EDC sample length*/
 #define MAX_SAMPLES (SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Max samples for runtime convolution*/
@@ -57,26 +57,26 @@
  */
 const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f};  
 
-#define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many emitters an entity can have attached*/
+#define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many AudioEmitters an entity can have attached*/
 #define MAX_NUKLEAR_EVENTS 256 /**<Max amount of events to poll in one render step*/
 #define MAX_SDL_EVENTS 512 /**<Max amount of events to poll in one render step*/
-#define MAX_MESH_NODES 1024 /**<Maximum mesh nodes in a scene (used for SSBO sizing)*/
-#define MAX_MESHES 512 /**<Maximum meshes in a scene (used for SSBO sizing)*/
+#define MAX_MESH_NODES 1024 /**<Maximum MeshNode%s in a scene (used for SSBO sizing)*/
+#define MAX_MESHES 512 /**<Maximum Mesh%es in a scene (used for SSBO sizing)*/
 #define MAX_JOINT_MATRICES 512 /**<Maximum joints in a scene (used for SSBO sizing)*/
-#define MAX_INSTANCES 1024 /**<Maximum amount of instances to push in one frame (used for SSBO sizing)*/
-#define MAX_MATERIALS 256 /**<Maximum amount of materials (used for SSBO sizing)*/
-#define MAX_LIGHTS 1024 /**<Maximum amount of lights to be pushed per frame (used for SSBO sizing)*/
+#define MAX_INSTANCES 1024 /**<Maximum amount of TransformGPU instances to push in one frame (used for SSBO sizing)*/
+#define MAX_MATERIALS 256 /**<Maximum amount of Material%s (used for SSBO sizing)*/
+#define MAX_LIGHTS 1024 /**<Maximum amount of Light%s to be pushed per frame (used for SSBO sizing)*/
 
 // TODO remove this define
-#define MINIMUM_LIGHT_VISIBILITY_DIST 0.01 /**<Light visibility dist used for culling (only used for spot lights(?) now)*/
-#define MAX_LIGHTS_PER_MESH 4 /**<Max directional + spot lights to push at one time for a mesh*/
+#define MINIMUM_LIGHT_VISIBILITY_DIST 0.01 /**<Light visibility dist used for culling (only used for spot Light%s(?) now)*/
+#define MAX_LIGHTS_PER_MESH 4 /**<Max directional + spot Light%s to push at one time for a Mesh*/
 
 // TODO this might be too small
 #define MAX_DRAW_COMMANDS 512 /**<Maxmimum amount of draw commands to push to the gpu*/
 
-#define MAX_DIRECTIONAL_LIGHTS 4 /**<Maxmimum directional lights at one time (used for shadowmap sizing)*/
+#define MAX_DIRECTIONAL_LIGHTS 4 /**<Maxmimum directional Light%s at one time (used for shadowmap sizing)*/
 
-#define MAX_ENTITY_STATES 256 /**<Maximim entity states for behaviors*/
+#define MAX_ENTITY_STATES 256 /**<Maximim Entity states for behaviors*/
 
 #define DEFAULT_TEXTURES 5 /**<How many dummy default textures are on init*/
 
@@ -106,7 +106,7 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 #define UBERSHADER_VERSIONS 17 /**<Maxmimum main shader brances*/
 #define GBUFFER_VERSIONS 1 /**<Maxmimum gbuffer shader branches*/
 
-#define MAX_PLAYER_CONTACTS 10 /**<Maximum amount of collision contacts to consider per frame*/
+#define MAX_PLAYER_CONTACTS 10 /**<Maximum amount of CollisionPoints to consider per frame*/
 
 /**
  * @name Resolutions
@@ -135,7 +135,7 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 
 #define MAX_RPROBE_MIPS 1 /**<The amount of mips to allocate for rprobes*/
 
-#define MAX_RPROBES_PER_FRAME 4 /**<Max rprobes to push to UBOs per frame (for sizing)*/
+#define MAX_RPROBES_PER_FRAME 4 /**<Max ReflectionProbe%s to push to UBOs per frame (for sizing)*/
 
 #define SSAO_KERNEL_SIZE 16 /**<SSAO init kernel size*/
 
@@ -156,8 +156,8 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 
 
 /**
- * @name Probe Volume Constants
- * @brief Probe volume sizes, amounts, and dimensions. Audio probes have the ability to have different dimensions, while lighting probe volumes are standardized here.
+ * @name ProbeVolume Constants
+ * @brief ProbeVolume sizes, amounts, and dimensions. Audio probes have the ability to have different dimensions, while lighting probe volumes are standardized here.
  * @{
  */
 #define LPV_SLOTS 6
@@ -287,9 +287,9 @@ typedef struct PhysicsComponent PhysicsComponent;
 
 
 /**
- * @brief Reflection probes used for parallax corrected cubemaps.
- * @see RPROBE_CUBEMAP_ARRAY
- * @see RPROBE_UBO
+ * @brief ReflectionProb%es used for parallax corrected cubemaps.
+ * @see ::RPROBE_CUBEMAP_ARRAY
+ * @see ::RPROBE_UBO
  */
 typedef struct ReflectionProbe
 {
@@ -320,19 +320,19 @@ typedef struct AudioProbeWeights
 
     int count; /**<The amount of probes that were sampled.*/
     int APV_id; /**<Which APV these probes belong to.*/ 
-    int probes[MAX_INTERP_APROBES]; /**<The indices of the AudioProbes.*/
+    int probes[MAX_INTERP_APROBES]; /**<The indices of the AudioProbe%s.*/
     float weights[MAX_INTERP_APROBES]; /**<The weights that correspond to each probe's value.*/
     
 } AudioProbeWeights;
 
 /**
- * @brief Audio portals used for determining paths to transmit sound when emitter and listener are occluded.
+ * @brief AudioPortal%s used for determining paths to transmit sound when emitter and listener are occluded.
  */
 typedef struct AudioPortal
 {
 
-    vec3 pos; /**<The position of the portal.*/
-    Vector adjacent_portals; /**<int - Vector of portals that can be seen from this one.*/
+    vec3 pos; /**<The position of the AudioPortal.*/
+    Vector adjacent_portals; /**<int - Vector of AudioPortal%s that can be seen from this one.*/
     
 } AudioPortal;
 
@@ -375,7 +375,7 @@ typedef struct HRTFThreadData
 typedef struct AudioScratchBuffers
 {
 
-    SDL_mutex * aprobe_mutex; /**<Used when loading new APVs to avoid concurrency with the HRTF thread.*/
+    SDL_mutex * aprobe_mutex; /**<Used when loading new APV%s to avoid concurrency with the HRTF thread.*/
 
     int block_size; /**<Currently 512.*/
     int padded_len; /**<Currently 1024.*/
@@ -406,7 +406,7 @@ typedef struct AudioScratchBuffers
 
 
 /**
- * @brief The IR convolver node used to process frames in the audio thread.
+ * @brief The IR ::CONVOLVER_NODE used to process frames in the audio thread.
  * @see init_audio_scratch_buffers()
  * @see convolver_node_process_pcm_frames()
  */
@@ -453,27 +453,27 @@ typedef struct ConvolverNode
 
 
 /**
- * @brief An audio emitter that plays audio possibily from a certain position or at a certain time.
+ * @brief An AudioEmitter that plays audio possibily from a certain position or at a certain time.
  * @see audio/audio.c
- * @see AUDIO_EMITTERS
+ * @see ::AUDIO_EMITTERS
  */
 typedef struct AudioEmitter
 {
 
     char path[256]; /**<The path to the sound.*/
-    uint32_t id; /**<The static ID of the AudioEmitter inside of AUDIO_EMITTERS.*/
+    uint32_t id; /**<The static ID of the AudioEmitter inside of ::AUDIO_EMITTERS.*/
     ma_sound sound_obj; /**<The miniaudio sound obj.*/
     ma_lpf_node lpf_node; /**<The low pass filter for this emitter.*/
     float current_cutoff; /**<The current low pass cutoff.*/
     float base_volume; /**<The starting volume.*/
     float current_volume; /**<The current volume.*/
     float current_distance; /**<The current distance from listener.*/
-    vec3 pos; /**<The position of the emitter.*/
+    vec3 pos; /**<The position of the AudioEmitter .*/
     vec3 virtual_pos; /**<The position that we spatialize the emitter at (for example: at the corner instead of behind the wall)*/
     bool is_loaded; /**<If the emitter is loaded in miniaudio.*/
-    bool is_occludable; /**<If the emitter can be occluded and needs to go through the portal system.*/
-    bool is_loop; /**<If the emitter loops.*/
-    bool free; /**<Indicates if this emitter is empty or can be replaced.*/
+    bool is_occludable; /**<If the AudioEmitter can be occluded and needs to go through the AudioPortal system.*/
+    bool is_loop; /**<If the AudioEmitter loops.*/
+    bool free; /**<Indicates if this AudioEmitter is empty or can be replaced.*/
     
 } AudioEmitter;
 
@@ -548,8 +548,8 @@ typedef struct GLRenderbuffer
 typedef struct Framebuffer
 {
 
-    int texture_count; /**<The amount of GLTextures bound.*/
-    int rbo_count; /**<The amount of GLRenderbuffers bound.*/
+    int texture_count; /**<The amount of GLTexture%s bound.*/
+    int rbo_count; /**<The amount of GLRenderbuffer%s bound.*/
     GLuint fbo; /**<The handle for this fbo.*/
     GLTexture texture[6]; /**<The textures bound to this fbo.*/
     GLRenderbuffer renderbuffers[6]; /**<The renderbuffers bound to this fbo.*/
@@ -566,7 +566,7 @@ typedef struct Framebuffer
 typedef enum SelectionMode
 {
 
-    SELMODE_MN, /**<MeshNode.*/
+    SELMODE_MN, /**<MeshNode*/
     SELMODE_LIGHT, /**<Light*/
     SELMODE_LPV, /**<Lighting ProbeVolume (LPV)*/
     SELMODE_RPROBE, /**<ReflectionProbe*/
@@ -662,7 +662,7 @@ typedef struct EditorSettings
     float DOF_max_blur_radius;
     /** @} */
 
-    bool wireframe_toggled; /**<Shows wireframes around many structures: lights, rprobes, aprobes, aportals, aabbs, etc.*/
+    bool wireframe_toggled; /**<Shows wireframes around many structures: Light%s, ReflectionProbe%s, AudioProbe%s, AudioPortal%s, AABB%s, etc.*/
 
     /**
      * @brief Tracks rendering dimensions in editor menu.
@@ -708,7 +708,7 @@ typedef struct EditorSettings
     
     /**
      * @name PV Overlay
-     * @brief Toggles debug overlays for the OBBs for ProbeVolumes.
+     * @brief Toggles debug overlays for the OBB%s for ProbeVolume%s.
      * @{
      */
     bool audio_probe_volume_overlay;
@@ -736,105 +736,128 @@ typedef struct EditorSettings
 
     float render_framerate_target; /**<The target framerate for rendering and processing ui events (a cap).*/
 
-    float reverb_wet;
-    float volume;
+    float reverb_wet; /**<Controls the volume of the reverb signal.*/
+    float volume; /**<Controls the engine volume.*/
         
+    /**
+     * @name OBB Axis
+     * @brief Handles OBB rotation (mainly for LPV%s and APV%s).
+     * @{
+     */
     float obb_axis_x_angle;
     float obb_axis_y_angle;
     float obb_axis_z_angle;
+    /** @} */
 
-    AABB lm_aabb;
+    AABB lm_aabb; /**<The AABB that sizes the current lightmap in world space.*/
 
-    size_t undo_stack_max_byte_size;
+    size_t undo_stack_max_byte_size; /**<The maximum memory value for the Undo stack.*/
     
-
 } EditorSettings;
 
-typedef struct InstanceVisibilityGPU
-{
-    
-    uint32_t count;
-    uint32_t pad0;
-    uint32_t pad1;
-    uint32_t pad2;
-    uint32_t visibility[MAX_INSTANCES];
-} InstanceVisibilityGPU;
 
-
+/**
+ * @brief DrawArraysIndirect commands are used for static meshes (eg. those that can be lightmapped).
+ * @see https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDrawArraysIndirect.xhtml
+ */
 typedef struct DrawArraysIndirectCommand {
+
     uint32_t count;
     uint32_t instanceCount;
     uint32_t first;
     uint32_t baseInstance;
-    uint32_t instanceOffset;
+    uint32_t instanceOffset; /**<This tracks how many offsets were pushed in a frame and is used in the prefix sum.*/
     uint32_t pad0;
+
 } DrawArraysIndirectCommand;
 
-typedef struct ArraysIndirectGPU
-{
-    DrawArraysIndirectCommand indirect[MAX_MESHES];
-} ArraysIndirectGPU;
-
+/**
+ * @brief DrawArraysIndirect commands are used for non-static meshes.
+ * @see https://registry.khronos.org/OpenGL-Refpages/gl4/html/glDrawElementsIndirect.xhtml
+ */
 typedef struct DrawElementsIndirectCommand {
+
     uint32_t count;
     uint32_t instanceCount;
     uint32_t firstIndex;
     uint32_t baseVertex;
     uint32_t baseInstance;
-    uint32_t instanceOffset;
+    uint32_t instanceOffset; /**<This tracks how many offsets were pushed in a frame and is used in the prefix sum.*/ 
+
 } DrawElementsIndirectCommand;
 
-typedef struct ElementsIndirectGPU
-{
-    DrawElementsIndirectCommand indirect[MAX_MESHES];
-} ElementsIndirectGPU;
-
+/**
+ * @brief The global visibility buffer that holds all indices to instances per frame after they are pushed during culling.
+ * @see render/cull_draw_calls.comp
+ */
 typedef struct GlobalInstanceGPU
 {
     uint32_t visibility[MAX_MESHES * MAX_INSTANCES];
 } GlobalInstanceGPU;
 
 
+/**
+ * @brief MeshNode structure padded for GPU (::MESH_NODE_SSBO)
+ * @see render/dynamic.vert
+ */
 typedef struct MeshNodeDataGPU
 {
+
+    /**
+     * @name AABB
+     * @brief The transformed aabb of the mesh node.
+     * @{
+     */
     vec4 min;
     vec4 max;
     vec4 center;
     vec4 extents;
-    uint32_t instance_count;
+    /** @} */
+
+    uint32_t instance_count; /**<Used to be used to find the instance being rendered, but now that's on the transform data itself.*/
     uint32_t static_mesh;
-    uint32_t lm_offset;
+    uint32_t lm_offset; /**<The lightmap offset into ::LIGHTMAP_SSBO where this mesh node starts.*/
     uint32_t material;
     uint32_t first;
     uint32_t count;
     uint32_t pad0;
     uint32_t pad1;
+
 } MeshNodeDataGPU;
 
+/**
+ * @brief MeshNode buffer structure for ::MESH_NODE_SSBO
+ */
 typedef struct MeshNodeSSBO
 {
-    float focal_distance;
+    float focal_distance; /**<The current focal distance found via compute shader, transported via this ssbo to coc.*/
     uint32_t pad0;
     uint32_t pad1;
     uint32_t pad2;
     MeshNodeDataGPU mns[MAX_MESH_NODES];
 } MeshNodeSSBO;
 
+/**
+ * @brief TransformGPU buffer structure for ::INSTANCE_SSBO. Triple buffered and submitted into each frame for each mesh node.
+ */
 typedef struct TransformGPU
 {
 
-    uint32_t mn_id;
-    uint32_t command_id;
-    uvec2 directional_lights;
-    uvec2 spot_lights;
-    uint32_t skin_offset;
-    uint32_t material;
-    mat4 tr;
+    uint32_t mn_id; /**<The MeshNode this belongs to.*/
+    uint32_t command_id; /**<The DrawCommand this refers to.*/
+    uvec2 directional_lights; /**<Directional Light%s count and offset.*/
+    uvec2 spot_lights; /**<Spot Light%s count and offset.*/
+    uint32_t skin_offset; /**<The GLTFSkin matrix offset for this transform.*/
+    uint32_t material; /**<The Material ID for this submesh.*/
+    mat4 tr; /**<The Transform's matrix.*/
     
 } TransformGPU;
 
 
 typedef struct Filter Filter;
+/**
+ * @brief Filters to be used for filtering out entities for triggers.
+ */
 struct Filter
 {
     
@@ -844,6 +867,9 @@ struct Filter
     
 } ;
 
+/**
+ * @brief Types of Trigger%s.
+ */
 typedef enum TriggerType
 {
 
@@ -853,6 +879,9 @@ typedef enum TriggerType
 
 } TriggerType;
 
+/**
+ * @brief Trigger%s that cause events or persisting effects.
+ */
 typedef struct Trigger
 {
 
@@ -863,54 +892,91 @@ typedef struct Trigger
 } Trigger;
 
 
-
+/**
+ * @brief Points that track collision data such as direction, penetration depth, and more to generate Manifold%s and resolve impulses.
+ * @see physics/physics.c
+ */
 typedef struct CollisionPoints
 {
 
-    vec3 a; // furthest point of A into B
-    vec3 b; // furthest point of B into A
+    vec3 a; /**<Furthest point of A into B.*/
+    vec3 b; /**<Furthest point of B into A.*/
     size_t index_a;
     size_t index_b;
-    vec3 normal;
-    vec3 tangent;
-    float d; // depth (length of B-A)
+    vec3 normal; /**<The collision normal from B into A*/
+    vec3 tangent; /**<The tangent used for frictional impulse resolution*/
+    float d; /**<Length of B-A.*/
     bool collision;
 
+    /**
+     * @name Components
+     * @brief The PhysicsComponent%s and their respective MeshNode%s.
+     * @note -1 is empty for MeshNode%s
+     * @note NULL is empty for PhysicsComponent%s
+     * @{
+     */
     PhysicsComponent * pcA;
     int mnA;
-
     PhysicsComponent * pcB;
     int mnB;
+    /** @} */
 
+    /**
+     * @name Manifold Data
+     * @brief These track Manifold metadata over frames to check equivalency later.
+     * @{
+     */
     int incident_face;
     int reference_face;
     int edge_a;
     int edge_b;
+    /** @} */
     
+    /**
+     * @name Impulses
+     * @brief Persistent impulses used over iterations in the solver.
+     * @{
+     */
     float normal_impulse;
     float bias_impulse;
     float tangent_impulse;
+    /** @} */
 
     
 } CollisionPoints;
 
 
-#define MAX_MANIFOLDS 64
+#define MAX_MANIFOLDS 64 /**<The maximum amount of Manifolds in ::MANIFOLDS.*/
+
+
+/**
+ * @brief Persistent Manifold%s that track collisions and how to resolve them.
+ * @remark Stored in ::MANIFOLDS.
+ * @see physics/physics.c
+ */
 typedef struct Manifold
 {
 
+    /**
+     * @name Components
+     * @brief The PhysicsComponent%s and their respective MeshNode%s. Stored to check for matches.
+     * @note -1 is empty for MeshNode%s
+     * @note NULL is empty for PhysicsComponent%s
+     * @{
+     */
     PhysicsComponent *a;
     int mnA;
     PhysicsComponent *b;
     int mnB;
+    /** @} */
 
-    CollisionPoints contacts[4];
-    int count;
+    CollisionPoints contacts[4]; /**<The collision contacts.*/
+    int count; /**<The amount of valid contacts.*/
 
-    bool processed;
-    bool free;
+    bool processed; /**<Tracks if a Manifold has been processed this frame yet.*/
+    bool free; /**<Tracks if a Manifold can be replaced.*/
 
-    float deepest;
+    float deepest; /**<Current deepest contact for a search.*/
 
 } Manifold;
 
@@ -920,29 +986,13 @@ typedef struct Manifold
 // then find coplanar faces within some epsilon and then create surfaces with tri lists
 // from there create uv islands for each surface and wrap
 // then bake lighting
-    
-typedef struct LightmapTexel
-{
-    
-    vec3 pos;
-    vec3 normal;
-
-    vec3 emission;
-    vec3 albedo;
-
-    vec3 lighting;
-
-    float current_energy;
-
-    float b0, b1, b2; // barycentrics
-    int tri;
-    bool active;
-    int mesh_node;
-    
-} LightmapTexel;
 
 
 
+/**
+ * @brief Performance query types used to profile the render loop.
+ * @see main()
+ */
 typedef enum PerformanceQueryTypes
 {
 
@@ -967,10 +1017,7 @@ typedef struct ConvexHull
 {
 
     Vector vertices;
-
     Vector faces;
-
-
     Vector hull_faces;
     vec3 centroid;
     AABB aabb;
@@ -1838,6 +1885,10 @@ struct Entity
 };
 
 #define MAX_NODE_CHILDREN 128
+/**
+ * @brief Mesh Nodes
+ * @see main()
+ */
 typedef struct MeshNode {
     
     char name[256];
