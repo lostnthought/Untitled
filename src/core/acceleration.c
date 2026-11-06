@@ -203,7 +203,7 @@ bool ray_intersects_obb_with_point(OBB obb, vec3 origin, vec3 dir, vec3 * inters
 
 
 
-void ray_traverse_mesh_bvh_lighting(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
+void ray_traverse_mesh_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
 {
 
     int ni = 0;
@@ -277,7 +277,7 @@ void ray_traverse_mesh_bvh_lighting(Mesh * m, MeshNode * mn, BVHNode * nodes, ve
 }
 
 
-bool ray_traverse_scene_bvh_lighting(SceneData * sd, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
+bool ray_traverse_scene_bvh(SceneData * sd, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
 {
 
     int ni = 0;
@@ -310,7 +310,7 @@ bool ray_traverse_scene_bvh_lighting(SceneData * sd, BVHNode * nodes, vec3 origi
                 vec3 inv_md = (vec3){1.0f/md.x, 1.0f/md.y, 1.0f/md.z};
                 if (m->static_mesh)
                 {
-                    ray_traverse_mesh_bvh_lighting(m, mn, mnodes, origin, pm, dir, md, inv_md, hit, mesh, tri, check_normal);
+                    ray_traverse_mesh_bvh(m, mn, mnodes, origin, pm, dir, md, inv_md, hit, mesh, tri, check_normal);
                 }
                 else
                 {
@@ -355,13 +355,14 @@ bool ray_traverse_scene_bvh_lighting(SceneData * sd, BVHNode * nodes, vec3 origi
 
 RayHit raycast_scene(vec3 start, vec3 dir, float initial_t, bool check_normal)
 {
+
     RayHit hit;
     hit.hit = 0;
     hit.t = initial_t;
     BVHNode * nodes = CAST_VEC(GLOBALS.scene_data.bvh_nodes, BVHNode);
     vec3 inv_dir = {(dir.x == 0) ? 100000.0f : 1.0f/dir.x, (dir.y == 0) ? 100000.0f : 1.0f/dir.y, (dir.z == 0) ? 100000.0f : 1.0f/dir.z};
 
-    ray_traverse_scene_bvh_lighting(&GLOBALS.scene_data, nodes, start, start, dir, dir, inv_dir, &hit, 0, 0, check_normal);
+    ray_traverse_scene_bvh(&GLOBALS.scene_data, nodes, start, start, dir, dir, inv_dir, &hit, 0, 0, check_normal);
     MeshNode * mns = CAST_VEC(GLOBALS.mesh_nodes, MeshNode);
     if (hit.hit && hit.mesh_node_idx >= 0 && hit.mesh_node_idx < GLOBALS.mesh_nodes.count)
     {
@@ -451,7 +452,7 @@ bool process_collision_node(Mesh * m, MeshNode * mn, BVHNode * node, vec3 propos
 
 
 // TODO make this non-recursive
-bool traverse_collision_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, BVHNode * node, vec3 start, vec3 inv_s, vec3 proposed, vec3 inv_p, vec3 dir, vec3 td, vec3 inv_dir, CollisionPoints * p)
+bool traverse_collision_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, BVHNode * node, vec3 proposed, vec3 inv_p, CollisionPoints * p)
 {
 
     AABB aabb = node->aabb;
@@ -481,14 +482,14 @@ bool traverse_collision_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, BVHNode * 
         
         BVHNode * left = &nodes[node->left];
 
-            traverse_collision_bvh(m, mn, nodes, left, start, inv_s, proposed, inv_p, dir, td, inv_dir, p);
+            traverse_collision_bvh(m, mn, nodes, left, proposed, inv_p, p);
     }
     if (node->right >= 0)
     {
         
         BVHNode * right = &nodes[node->right];
 
-            traverse_collision_bvh(m, mn, nodes, right, start, inv_s, proposed, inv_p, dir, td, inv_dir, p);
+            traverse_collision_bvh(m, mn, nodes, right, proposed, inv_p, p);
     }
     return false;
     

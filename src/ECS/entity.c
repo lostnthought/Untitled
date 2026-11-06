@@ -41,7 +41,6 @@ State * find_state_by_name(const char * name)
         }
     }
 
-
     return NULL;
 }
 
@@ -191,7 +190,6 @@ Entity * create_entity(AssetInstance * asset_instance, int mn_id, bool physics_c
         }
         else
         {
-            
             ent->aabb = asset_instance->aabb;
         }
         if (physics_component)

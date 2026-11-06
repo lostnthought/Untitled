@@ -324,185 +324,6 @@ void
 
 
 
-bool point_in_triangle(vec3 P, vec3 A, vec3 B, vec3 C)
-{
-    
-    vec3 v0 = vec3_sub(B, A);
-    vec3 v1 = vec3_sub(C, A);
-    vec3 v2 = vec3_sub(P, A);
-
-    float d00 = vec3_dot(v0, v0);
-    float d01 = vec3_dot(v0, v1);
-    float d11 = vec3_dot(v1, v1);
-    float d20 = vec3_dot(v2, v0);
-    float d21 = vec3_dot(v2, v1);
-
-
-    float denom = d00 * d11 - d01 * d01;    
-
-    float v = (d11 * d20 - d01 * d21) / denom;
-    float w = (d00 * d21 - d01 * d20) / denom;
-    float u = 1.0f - v - w;    
-
-
-    const float eps = 0.01f;
-
-    bool inside =
-        u >= -eps &&
-        v >= -eps &&
-        w >= -eps;
-
-    return inside;
-}
-
-vec3 project_point_plane(vec3 point, vec3 plane_point, vec3 normal)
-{
-
-    float d = vec3_dot(vec3_sub(point, plane_point), normal);
-
-    return vec3_sub(point, vec3_scale(normal, d));
-
-}
-
-vec3 closest_point_segment(vec3 p, vec3 a, vec3 b)
-{
-    vec3 ab = vec3_sub(b, a);
-
-    float t = vec3_dot(vec3_sub(p, a), ab) / vec3_dot(ab, ab);
-
-    t = clamp(t, 0.0f, 1.0f);
-
-    return vec3_add(a, vec3_scale(ab, t));
-
-}
-
-float point_to_segment_dist(vec2 p, vec2 a, vec2 b) {
-
-    vec2 ab = {b.x - a.x, b.y - a.y};
-    vec2 ap = {p.x - a.x, p.y - a.y};
-
-    float t = (ap.x * ab.x + ap.y * ab.y) / (ab.x * ab.x + ab.y * ab.y);
-    t = fmaxf(0.0f, fminf(1.0f, t));
-
-    vec2 closest = { a.x + t * ab.x, a.y + t * ab.y };
-    float dx = p.x - closest.x;
-    float dy = p.y - closest.y;
-
-    return sqrtf(dx*dx + dy*dy);
-
-}
-
-
-vec3 segment_plane_distance(vec3 proposed, vec3 pts[3], vec3 normal)
-{
-
-    vec3 b = proposed;
-    b.z += player.height;
-    float da = vec3_dot(vec3_sub(proposed, pts[0]), normal);
-    float db = vec3_dot(vec3_sub(b, pts[0]), normal);
-    float dd = da * db;
-    if (dd > 0) return (vec3){999,999,999};
-
-    float t = da/(da-db);
-
-    return vec3_add(proposed, vec3_scale(vec3_sub(b, proposed), t));    
-
-}
-
-vec3 point_triangle_distance(vec3 proposed, vec3 pts[3], vec3 normal)
-{
-    vec3 p = project_point_plane(proposed, pts[0], normal);
-
-
-
-    vec3 ab = closest_point_segment(proposed, pts[0], pts[1]);
-    vec3 bc = closest_point_segment(proposed, pts[1], pts[2]);
-    vec3 ac = closest_point_segment(proposed, pts[2], pts[0]);
-
-    float ab_dist = vec3_length(vec3_sub(proposed, ab));
-    float bc_dist = vec3_length(vec3_sub(proposed, bc));
-    float ac_dist = vec3_length(vec3_sub(proposed, ac));
-    float p_dist = vec3_length(vec3_sub(p, proposed));
-
-    if (ab_dist <= bc_dist && ab_dist <= ac_dist && ab_dist <= p_dist)
-    {
-        return ab;
-    }
-    if (bc_dist <= ab_dist && bc_dist <= ac_dist && bc_dist <= p_dist)
-    {
-        return bc;
-    }
-    if (ac_dist <= ab_dist && ac_dist <= bc_dist && ac_dist <= p_dist)
-    {
-        return ac;
-        
-    }
-    if (p_dist <= ab_dist && p_dist <= bc_dist && p_dist <= ac_dist)
-    {
-        return p;
-    }
-    return p;
-
-}
-
-
-
-// From Ericson
-vec3 closest_point_triangle(vec3 p, vec3 a, vec3 b, vec3 c)
-{
-    
-    // Check if P in vertex region outside A
-    vec3 ab = vec3_sub(b, a);
-    vec3 ac = vec3_sub(c, a);
-    vec3 ap = vec3_sub(p, a);
-    float d1 = vec3_dot(ab, ap);
-    float d2 = vec3_dot(ac, ap);
-    if (d1 <= 0.0f && d2 <= 0.0f) return a; // barycentric coordinates (1,0,0)
-
-    // Check if P in vertex region outside B
-    vec3 bp = vec3_sub(p, b);
-    float d3 = vec3_dot(ab, bp);
-    float d4 = vec3_dot(ac, bp);
-    if (d3 >= 0.0f && d4 <= d3) return b; // barycentric coordinates (0,1,0)
-
-    // Check if P in edge region of AB, if so return projection of P onto AB
-    float vc = d1*d4 - d3*d2;
-    if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
-
-        float v = d1 / (d1 - d3);
-        return vec3_add(a, vec3_scale(ab, v)); // barycentric coordinates (1-v,v,0)
-
-    }
-
-    // Check if P in vertex region outside C
-    vec3 cp = vec3_sub(p, c);
-    float d5 = vec3_dot(ab, cp);
-    float d6 = vec3_dot(ac, cp);
-    if (d6 >= 0.0f && d5 <= d6) return c; // barycentric coordinates (0,0,1)
-
-
-    // // Check if P in edge region of AC, if so return projection of P onto AC
-    float vb = d5*d2 - d1*d6;
-    if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
-        float w = d2 / (d2 - d6);
-        return vec3_add(a, vec3_scale(ac, w)); // barycentric coordinates (1-w,0,w)
-    }
-    // // Check if P in edge region of BC, if so return projection of P onto BC
-    float va = d3*d6 - d5*d4;
-    if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
-
-        float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return vec3_add(b, vec3_scale(vec3_sub(c, b), w)); // barycentric coordinates (0,1-w,w)
-
-    }
-    // // P inside face region. Compute Q through its barycentric coordinates (u,v,w)
-    float denom = 1.0f / (va + vb + vc);
-    float v = vb * denom;
-    float w = vc * denom;
-    return vec3_add(vec3_add(a, vec3_scale(ab, v)), vec3_scale(ac, w)); // = u*a + v*b + w*c, u = va * denom = 1.0f - v - w
-    
-}
-
 bool collision(vec3 proposed, vec3 pts[3], vec3 normal, CollisionPoints * p)
 {
     
@@ -849,7 +670,7 @@ void player_find_collision(vec3 start, vec3 proposed, CollisionPoints p[MAX_PLAY
                                     vec3 inv_dir = {1.0f/td.x, 1.0f/td.y, 1.0f/td.z};
                                     BVHNode * node = &nodes[0];
             
-                                    bool col = traverse_collision_bvh(m, mn, nodes, node, start, sr, proposed, tr, dir, td, inv_dir, &p[*contact_count]);
+                                    bool col = traverse_collision_bvh(m, mn, nodes, node, proposed, tr, &p[*contact_count]);
                                     if (p[*contact_count].collision)
                                     {
 
@@ -943,7 +764,7 @@ void player_find_collision(vec3 start, vec3 proposed, CollisionPoints p[MAX_PLAY
                         vec3 inv_dir = {1.0f/td.x, 1.0f/td.y, 1.0f/td.z};
                         BVHNode * node = &nodes[0];
             
-                        bool col = traverse_collision_bvh(m, mn, nodes, node, start, sr, proposed, tr, dir, td, inv_dir, &p[*contact_count]);
+                        bool col = traverse_collision_bvh(m, mn, nodes, node, proposed, tr, &p[*contact_count]);
                         if (p[*contact_count].collision)
                         {
 
@@ -1045,8 +866,6 @@ void reset_skeleton(Skeleton * s, vec3 pos)
 void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3])
 {
 
-    
-
     minv[0] = vec3_normalize(P);
 
     float dot_dx = vec3_dot(D, minv[0]);
@@ -1062,7 +881,6 @@ void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3])
         mfwd[1] = (vec3){minv[0].y, minv[1].y, minv[2].y};
         mfwd[2] = (vec3){minv[0].z, minv[1].z, minv[2].z};
     }
-    
     
 }
 
@@ -1356,7 +1174,7 @@ void calculate_camera_angles(Camera * cam, Spring* s, vec3 input_acceleration, f
     
 }
 
-void move_foot(Skeleton * s, Camera * cam, vec3 vel)
+void update_skeleton(Skeleton * s, Camera * cam, vec3 vel)
 {
 
     
@@ -1375,8 +1193,6 @@ void move_foot(Skeleton * s, Camera * cam, vec3 vel)
     vec3 left_tr = mat3_mul_vec3(rot, left_leg_offset);
     vec3 right_tr = mat3_mul_vec3(rot, right_leg_offset);
 
-    
-
     s->left_hip_pos = vec3_add(s->pelvis.pos, left_tr);
     s->left_hip_pos.z -= 0.02f;
 
@@ -1388,8 +1204,6 @@ void move_foot(Skeleton * s, Camera * cam, vec3 vel)
     bool left_hit_floor = update_leg(&s->left_leg, &s->right_leg, left_tr, vel);
     bool right_hit_floor = update_leg(&s->right_leg, &s->left_leg, right_tr, vel);
 
-    
-    
     s->p_left = s->left_leg.pos;
     s->p_left = vec3_add(s->p_left, left_tr);
     s->p_right = s->right_leg.pos;
@@ -1418,8 +1232,6 @@ void move_foot(Skeleton * s, Camera * cam, vec3 vel)
     float drop = MAX(left_drop, right_drop);
 
     bool left_drop_higher = left_drop > right_drop;
-
-
 
     vec3 base_pos = vec3_scale(vec3_add(s->left_leg.pos, s->right_leg.pos), 0.5);
     s->pelvis.target = base_pos;
@@ -1452,9 +1264,9 @@ void move_foot(Skeleton * s, Camera * cam, vec3 vel)
 
 
 
-#define MIN_WALKABLE_SURFACE 0.5f
-#define STEP_HEIGHT 0.6f
-#define RAYCAST_HEIGHT 0.6f
+#define MIN_WALKABLE_SURFACE 0.5f ///< How steep the surface is for it to be walkable
+#define STEP_HEIGHT 0.6f ///< How high legs are raised during step
+#define RAYCAST_HEIGHT 0.6f ///< How high legs are raised to detect for steps
 
 
 void
@@ -1480,10 +1292,6 @@ void
     vec3 dir = {0,0,-1};
     vec3 inv_dir= {1.0f/dir.x, 1.0f/dir.y, 1.0f/dir.z};
     BVHNode * scene_nodes = CAST_VEC(GLOBALS.scene_data.bvh_nodes, BVHNode);
-    RayHit hit;
-    hit.tri = 0;
-    hit.t = INFINITY;
-    hit.hit = HIT_NONE;
 
     Mesh * m = &meshes[0];
     MeshNode * mn = &mns[0];
@@ -1491,7 +1299,7 @@ void
     MeshFace * mfs = CAST_VEC(m->tris, MeshFace);
     Point * pts = CAST_VEC(m->vertices, Point);
     
-    ray_traverse_scene_bvh_lighting(&GLOBALS.scene_data, scene_nodes,  raycast_proposed, raycast_proposed, dir, dir, inv_dir, &hit, 0, 0, true);
+    RayHit hit = raycast_scene(raycast_proposed, dir, INFINITY, true);
     
     CollisionPoints p[MAX_PLAYER_CONTACTS];
     memset(p, 0, sizeof(CollisionPoints) * MAX_PLAYER_CONTACTS);

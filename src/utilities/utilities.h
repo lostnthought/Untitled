@@ -44,7 +44,9 @@ vec3 generate_sphere_dir(int i, int N);
 
 bool mesh_faces_are_contiguous(MeshFace * a, vec3 * a_verts, MeshFace * b, vec3 * b_verts);
 
-
+vec3 project_point_plane(vec3 point, vec3 plane_point, vec3 normal);
+vec3 closest_point_triangle(vec3 p, vec3 a, vec3 b, vec3 c);
+vec3 closest_point_segment(vec3 p, vec3 a, vec3 b);
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f

@@ -30,7 +30,6 @@ extern int DEBUG_APROBE_RAY_COUNT;
 
 extern int DEBUG_CURRENT_APROBE;
 
-extern float PRECOMPUTED_NOISE[NUM_BANDS][MAX_SAMPLES];
 extern float BAND_IMPULSES[AUDIO_NUM_BANDS][AUDIO_KERNEL_SIZE];
 extern bool NUKLEAR_HOVERED;
 extern EditorSettings EDITOR_SETTINGS;
@@ -58,7 +57,6 @@ extern float * STATIC_HRTF_RIGHT[SH_MAX];
 extern DebugVertex * DEBUG_APROBE;
 extern int VALID_APROBE_SAMPLES;
 
-extern StereoAudio STEREO_AUDIO;
 extern ConvolverNode CONVOLVER_NODE;
 
 extern int HRTF_LENGTH;
@@ -454,8 +452,6 @@ extern PhysicsComponent PHYSICS_COMPONENTS[MAX_PHYSICS_COMPONENTS];
 #define MAX_ANIMATION_COMPONENTS 256
 extern AnimationComponent ANIMATION_COMPONENTS[MAX_ANIMATION_COMPONENTS];
 
-extern Cluster CLUSTER_GRID[TOTAL_CLUSTERS];
-extern uint32_t GLOBAL_INDEX_LIST[TOTAL_CLUSTERS * MAX_LIGHTS_PER_CLUSTER];
 
 static Light default_light =
 {

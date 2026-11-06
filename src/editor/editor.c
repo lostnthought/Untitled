@@ -4243,18 +4243,6 @@ void render_audio_menu()
             }
 
 
-            nk_layout_row_dynamic(NK_CTX, 20, 2);
-            nk_bool overlay = EDITOR_SETTINGS.audio_probes_overlay == 1;
-            if (nk_checkbox_label(NK_CTX, "Overlay", &overlay))
-            {
-                EDITOR_SETTINGS.audio_probes_overlay = overlay;
-            }
-
-            nk_bool override = EDITOR_SETTINGS.audio_probe_location_override == 1;
-            if (nk_checkbox_label(NK_CTX, "Override", &override))
-            {
-                EDITOR_SETTINGS.audio_probe_location_override = override;
-            }
             float volume = nk_propertyf(NK_CTX, "Volume", 0.0, EDITOR_SETTINGS.volume, 10.0f, 0.01f, 0.01f);
             if (volume != EDITOR_SETTINGS.volume)
             {
@@ -4671,12 +4659,6 @@ void render_audio_menu()
         }
 
 
-        aabb_to_vertices(&DEBUG_LINES[DEBUG_LINE_COUNT], &EDITOR_SETTINGS.audio_probe_override_aabb, (vec3){0,0,0});
-        for (int i = 0; i < 24; i++)
-        {
-            DEBUG_LINES[DEBUG_LINE_COUNT + i].color = (vec3){1,1,1};
-        }
-        DEBUG_LINE_COUNT += 24;
 
         
 

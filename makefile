@@ -27,7 +27,15 @@ OBJ = $(patsubst %.c, build/%.o, $(notdir $(SRC)))
 
 TARGET = bin/engine
 
-all: $(TARGET)
+.PHONY: docs clean-docs
+
+make: $(TARGET)
+
+docs:
+	doxygen Doxyfile	
+
+clean-docs:
+	rm -rf docs
 
 $(TARGET): $(OBJ)
 	@$(MKDIR_BIN)
@@ -39,3 +47,4 @@ build/%.o: %.c
 
 clean:
 	$(RM_CMD)	
+

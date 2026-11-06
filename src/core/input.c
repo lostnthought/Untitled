@@ -161,7 +161,6 @@ void process_sdl_event(SDL_Event event)
                 case SELMODE_MN:
                     if (hit.hit != HIT_NONE)
                     {
-                        EDITOR_SETTINGS.hit = hit;
                         EDITOR_SETTINGS.selected_mn_id = hit.mesh_node_idx;
                         EDITOR_SETTINGS.selected_sm_id = 0;
                         MeshNode * mns = CAST_VEC(GLOBALS.mesh_nodes, MeshNode);
@@ -622,7 +621,7 @@ void
             player.pos = (vec3_add(player.pos, vec3_scale(player.pc->vel, dt)));
             
         }
-        move_foot(&player.skeleton, &cam, move_dir);
+        update_skeleton(&player.skeleton, &cam, move_dir);
             
         
         

@@ -5,6 +5,15 @@
 #include "utilities/mathf.h"
 #include "utilities/utilities.h"
 
+static inline void start_timer(Timer* t) {
+    t->start = SDL_GetPerformanceCounter();
+    t->freq = SDL_GetPerformanceFrequency();
+}
+
+static inline double end_timer(Timer* t) {
+    Uint64 end = SDL_GetPerformanceCounter();
+    return (double)(end - t->start) * 1000.0 / (double)t->freq; 
+}
 bool mn_inside_of_root_tree(MeshNode * mns, int check_id, int id);
 static inline mat4 compose_trs_from_mesh_node(MeshNode * mn) {
     

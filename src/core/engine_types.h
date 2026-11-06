@@ -1,5 +1,9 @@
-#ifndef ENGINE_TYPES_H
+/**
+ * @file engine_types.h
+ * @brief Engine specific types and defines.
+ */
 
+#ifndef ENGINE_TYPES_H
 #define ENGINE_TYPES_H
 #include <stdbool.h>
 #include <stddef.h>
@@ -21,165 +25,157 @@
 
 #define PI 3.14159265358979323846
 
-#define NUM_BANDS 4
-#define FOV 90
-#define VIEW_NEAR 0.1
-#define VIEW_FAR 1000.0
+#define FOV 90 /**<FOV constant for player*/
+#define VIEW_NEAR 0.1 /**<Near plane for player*/
+#define VIEW_FAR 1000.0 /**<Far plane for player*/
 
-#define MAX_INTERP_APROBES 4
-#define MAX_AUDIO_EMITTERS 1024
-#define SAMPLE_RATE 48000
+#define MAX_INTERP_APROBES 4 /**<Max audio probes that can be sampled at once*/
+#define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of audio sample emitters*/
+#define SAMPLE_RATE 48000 /**<Audio sample rate*/
 
+#define IR_SAMPLE_RATE 48000 /**<Sample rate for baked audio IRs*/
+#define EDC_SAMPLE_RATE 48000 /**<EDC sample rate for schroeder integration*/
 
-
-#define IR_SAMPLE_RATE 48000
-
-#define EDC_SAMPLE_RATE 48000
-
-#define SPEED_OF_SOUND 343.0f 
-#define MAX_APROBE_SECONDS 1
-#define MAX_IR_SAMPLES (IR_SAMPLE_RATE * MAX_APROBE_SECONDS)
-#define MAX_EDC_SAMPLES (EDC_SAMPLE_RATE * MAX_APROBE_SECONDS)
-#define MAX_SAMPLES (SAMPLE_RATE * MAX_APROBE_SECONDS)
-#define AUDIO_PROBE_BINS 48000
-#define AUDIO_KERNEL_SIZE 31
-#define AUDIO_KERNEL_CENTER 15
-#define AUDIO_NUM_BANDS 6
-
-const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f};
+#define SPEED_OF_SOUND 343.0f /**<Speed of sound constant*/
+#define MAX_APROBE_SECONDS 1 /**<Longest amount of audio probe samples when baking*/
+#define MAX_IR_SAMPLES (IR_SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Maximum IR sample length*/
+#define MAX_EDC_SAMPLES (EDC_SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Maximum EDC sample length*/
+#define MAX_SAMPLES (SAMPLE_RATE * MAX_APROBE_SECONDS) /**<Max samples for runtime convolution*/
+#define AUDIO_PROBE_BINS 48000 /**<The amount of bins (to reduce max sample size)*/
+#define AUDIO_KERNEL_SIZE 31 /**<Frequency kernel size for distributing samples during audio bake*/
+#define AUDIO_KERNEL_CENTER 15 /**<Center of the kernel for distributing samples during audio bake*/
 
 
-#define MAX_AUDIO_EMITTERS_PER_ENTITY 24
+#define AUDIO_NUM_BANDS 6 /**<The amount of bands to use for audio probe baking*/
 
-#define MAX_NUKLEAR_EVENTS 256
-#define MAX_SDL_EVENTS 512
-#define MAX_MESH_NODES 1024
-#define MAX_MESHES 512
-#define MINIMUM_LIGHT_VISIBILITY_DIST 0.01
-#define MAX_LIGHTS_PER_MESH 4
-#define MAX_INSTANCES 1024
-#define MAX_DRAW_COMMANDS 512
+#define NUM_PARTITIONS_MAX 96 /**<Amount of max partitions to be used for overlap-add for audio probes + 1 for the tail trick*/
+#define NUM_PARTITIONS 95 /**<Amount of max partitions to be used for overlap-add*/
 
-#define MAX_DIRECTIONAL_LIGHTS 4
 
-#define MAX_ENTITY_STATES 256
+/**
+ * @brief Audio frequencies for each band for audio probe baking.
+ */
+const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f};  
 
-#define DEFAULT_TEXTURES 5
+#define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many emitters an entity can have attached*/
+#define MAX_NUKLEAR_EVENTS 256 /**<Max amount of events to poll in one render step*/
+#define MAX_SDL_EVENTS 512 /**<Max amount of events to poll in one render step*/
+#define MAX_MESH_NODES 1024 /**<Maximum mesh nodes in a scene (used for SSBO sizing)*/
+#define MAX_MESHES 512 /**<Maximum meshes in a scene (used for SSBO sizing)*/
+#define MAX_JOINT_MATRICES 512 /**<Maximum joints in a scene (used for SSBO sizing)*/
+#define MAX_INSTANCES 1024 /**<Maximum amount of instances to push in one frame (used for SSBO sizing)*/
+#define MAX_MATERIALS 256 /**<Maximum amount of materials (used for SSBO sizing)*/
+#define MAX_LIGHTS 1024 /**<Maximum amount of lights to be pushed per frame (used for SSBO sizing)*/
 
+// TODO remove this define
+#define MINIMUM_LIGHT_VISIBILITY_DIST 0.01 /**<Light visibility dist used for culling (only used for spot lights(?) now)*/
+#define MAX_LIGHTS_PER_MESH 4 /**<Max directional + spot lights to push at one time for a mesh*/
+
+// TODO this might be too small
+#define MAX_DRAW_COMMANDS 512 /**<Maxmimum amount of draw commands to push to the gpu*/
+
+#define MAX_DIRECTIONAL_LIGHTS 4 /**<Maxmimum directional lights at one time (used for shadowmap sizing)*/
+
+#define MAX_ENTITY_STATES 256 /**<Maximim entity states for behaviors*/
+
+#define DEFAULT_TEXTURES 5 /**<How many dummy default textures are on init*/
+
+// TODO move this to editor.c
+#define MAX_UI_MENU_NAMES 128 /**<Used in editor to determine dropdown size*/
+
+/**
+ * @name Editor Wireframe Sizes
+ * @brief Sizes of wireframes for various engine structures.
+ * @{
+ */
 #define EDITOR_LIGHT_SIZE 0.5f
 
 #define EDITOR_RPROBE_SIZE 0.5f
 
-#define EDITOR_AUDIO_EMITTER_SIZE 0.5f
+#define EDITOR_AUDIO_EMITTER_SIZE 0.5f 
 
-#define EDITOR_APROBE_SIZE 0.1f
+#define EDITOR_APROBE_SIZE 0.1f 
 
-#define EDITOR_APORTAL_SIZE 0.2f
+#define EDITOR_APORTAL_SIZE 0.2f 
+/** @} */
 
+#define PERFORMANCE_OVERLAY_TEXT_BOX_COUNT 13 /**<Offset of how many text boxes are used for the debug performance overlay*/
 
-#define PERFORMANCE_OVERLAY_TEXT_BOX_COUNT 13
+#define BUFFER_FRAMES 3 /**<Triple buffer count*/
 
-#define BUFFER_FRAMES 3
+#define UBERSHADER_VERSIONS 17 /**<Maxmimum main shader brances*/
+#define GBUFFER_VERSIONS 1 /**<Maxmimum gbuffer shader branches*/
 
-#define MAX_JOINT_MATRICES 512
+#define MAX_PLAYER_CONTACTS 10 /**<Maximum amount of collision contacts to consider per frame*/
 
-#define UBERSHADER_VERSIONS 17
-#define GBUFFER_VERSIONS 1
-
-#define MAX_WORLD_HEIGHT 1000
-#define MAX_WORLD_WIDTH 1000
-#define MAX_WORLD_DEPTH 1000
-
-#define MAX_MATERIALS 256
-#define MAX_PLAYER_CONTACTS 10
-
-#define LIGHTMAP_WIDTH 2048
+/**
+ * @name Resolutions
+ * @brief Sizes of various textures.
+ * @{
+ */
+#define LIGHTMAP_WIDTH 2048  
 #define LIGHTMAP_HEIGHT 2048
 
 #define RPROBE_WIDTH 128
 #define RPROBE_HEIGHT 128
 
-#define LPF_ORDER 2
-
-
-
 #define DEFAULT_POINT_LIGHT_SHADOWS_SIZE 128
 
-#define MAX_POINT_LIGHT_SHADOWS_CMA 16
-
-#define MAX_INSTANCES_PER_FRUSTUM 1024
-
-
-#define SH_MAX 9
 #define DEFAULT_SHADOW_MAP_SIZE 2048
 
-#define MAX_RPROBE_MIPS 1
-
-#define MAX_RPROBES_PER_FRAME 4
-
 #define FBM_TEXTURE_SIZE 128
-
-#define SSAO_KERNEL_SIZE 16
-
-
-#define ACCEL_BETA 0.005f
+/** @} */
 
 
+#define LPF_ORDER 2 /**<Used for miniaudio low pass filters*/
 
-#define GRID_X 16
+#define MAX_POINT_LIGHT_SHADOWS_CMA 16 /**<Maximum amount of point light shadows in texture depth*/
 
+#define SH_MAX 9 /**<Second order spherical harmonics*/
+
+#define MAX_RPROBE_MIPS 1 /**<The amount of mips to allocate for rprobes*/
+
+#define MAX_RPROBES_PER_FRAME 4 /**<Max rprobes to push to UBOs per frame (for sizing)*/
+
+#define SSAO_KERNEL_SIZE 16 /**<SSAO init kernel size*/
+
+#define ACCEL_BETA 0.005f /**<Friction / air accel decay constant*/
+
+
+/**
+ * @name Clustered shading
+ * @brief Sizes of cluster grid and constants.
+ * @{
+ */
+#define GRID_X 16  
 #define GRID_Y 9
-
 #define GRID_Z 24
-
 #define TOTAL_CLUSTERS (GRID_X * GRID_Y * GRID_Z)
-
-#define MAX_LIGHTS 1024
-
 #define MAX_LIGHTS_PER_CLUSTER 12
+/** @} */
 
 
-#define MAX_PROBE_VOLUMES 4
+/**
+ * @name Probe Volume Constants
+ * @brief Probe volume sizes, amounts, and dimensions. Audio probes have the ability to have different dimensions, while lighting probe volumes are standardized here.
+ * @{
+ */
+#define LPV_SLOTS 6
 #define MAX_AUDIO_PROBE_VOLUMES 4
 #define PROBE_VOLUME_WIDTH 12
 #define PROBE_VOLUME_HEIGHT 12
 #define PROBE_VOLUME_DEPTH 12
-#define PROBE_VOLUME_DEPTH_PADDED (PROBE_VOLUME_DEPTH + 2)
+#define PROBE_VOLUME_DEPTH_PADDED (PROBE_VOLUME_DEPTH + 2) /**<Padding to avoid leaking on edges in Z*/
 #define LPV_COUNT (PROBE_VOLUME_WIDTH * PROBE_VOLUME_HEIGHT * PROBE_VOLUME_DEPTH)
 #define LPV_PADDED_COUNT (PROBE_VOLUME_WIDTH * PROBE_VOLUME_HEIGHT * PROBE_VOLUME_DEPTH_PADDED)
-#define LPV_SLOTS 6
-#define LPV_GLOBAL_SLOTS 2
-#define GLOBAL_PROBE_VOLUME_WIDTH 32
-#define GLOBAL_PROBE_VOLUME_HEIGHT 32
-#define GLOBAL_PROBE_VOLUME_DEPTH 32
-
-#define MAX_UI_MENU_NAMES 128
+/** @} */
 
 
 
-typedef struct {
-    uint32_t offset; 
-    uint32_t count;  
-} Cluster;
 
-
-
-typedef struct {
-    uint64_t start;
-    uint64_t freq;
-} Timer;
-
-static inline void start_timer(Timer* t) {
-    t->start = SDL_GetPerformanceCounter();
-    t->freq = SDL_GetPerformanceFrequency();
-}
-
-static inline double end_timer(Timer* t) {
-    Uint64 end = SDL_GetPerformanceCounter();
-    return (double)(end - t->start) * 1000.0 / (double)t->freq; 
-}
-
-
+/**
+ * @brief Enum for debug views that are ubershader branches.
+ */
 typedef enum DebugView
 {
 
@@ -202,6 +198,10 @@ typedef enum DebugView
     DVIEW_MAX
 
 } DebugView;
+
+/**
+ * @brief Debug view names used for choosing a debug view.
+ */
 static const char * DVIEW_NAMES[] =
 {
     "DVIEW_DEFAULT",
@@ -222,11 +222,17 @@ static const char * DVIEW_NAMES[] =
     "DVIEW_SPECULAR"
 };
 
+/**
+ * @brief Postprocess options.
+ */
 typedef enum PostprocessToggles
 {
     PP_MBLUR, PP_DOF, PP_BLOOM, PP_NOISE, PP_ACES, PP_LUT, PP_MAX
 } PostprocessToggles;
 
+/**
+ * @brief Postprocess debug view shader branches.
+ */
 typedef enum PostprocessDView
 {
     PPDVIEW_DEFAULT,
@@ -237,6 +243,9 @@ typedef enum PostprocessDView
     PPDVIEW_MAX
 } PostprocessDView;
 
+/**
+ * @brief Postprocess debug view names used for choosing.
+ */
 static const char * PPDVIEW_NAMES[] =
 {
     "PP_DVIEW_DEFAULT",
@@ -247,6 +256,10 @@ static const char * PPDVIEW_NAMES[] =
     "PPDVIEW_MAX",
 };
 
+/**
+ * @brief Fullscreen options.
+ * @see render_main_menu().
+ */
 typedef enum FullscreenOptions
 {
 
@@ -257,6 +270,10 @@ typedef enum FullscreenOptions
 
 } FullscreenOptions;
 
+/**
+ * @brief Fullscreen option names.
+ * @see render_main_menu().
+ */
 static const char * FULLSCREEN_OPTION_NAMES[] =
 {
     "FULLSCREEN",
@@ -269,199 +286,222 @@ static const char * FULLSCREEN_OPTION_NAMES[] =
 typedef struct PhysicsComponent PhysicsComponent;
 
 
-
+/**
+ * @brief Reflection probes used for parallax corrected cubemaps.
+ * @see RPROBE_CUBEMAP_ARRAY
+ * @see RPROBE_UBO
+ */
 typedef struct ReflectionProbe
 {
 
-    AABB aabb;
-    vec3 fade_margin;
-    vec3 capture_pos;
-    int cubemap_idx;
+    AABB aabb; /**<Bounding box of area.*/
+    vec3 fade_margin; /**<The margin to fade between this probe and another.*/
+    vec3 capture_pos; /**<The position to capture the cubemap from.*/
+    int cubemap_idx; /**<Which cubemap this is linked to.*/
     
 } ReflectionProbe;
 
-#define NUM_PARTITIONS_MAX 96
-#define NUM_PARTITIONS 95
+/**
+ * @brief Type for one FFT partiton for overlap-add.
+ */
 typedef fftwf_complex * PartitionTableChannel[NUM_PARTITIONS];
+
+/**
+ * @brief Type for two channels (stereo) for overlap-add.
+ */
 typedef PartitionTableChannel PartitionTable[2];
 
-typedef struct StereoAudio
-{
-
-    PartitionTable * left_ir;
-
-} StereoAudio;
-
+/**
+ * @brief Weights used for interpolating between audio probes.
+ * @see interpolate_nearest_aprobes()
+ */
 typedef struct AudioProbeWeights
 {
 
-    int count;
-    int APV_id;
-    int probes[MAX_INTERP_APROBES];
-    float weights[MAX_INTERP_APROBES];
+    int count; /**<The amount of probes that were sampled.*/
+    int APV_id; /**<Which APV these probes belong to.*/ 
+    int probes[MAX_INTERP_APROBES]; /**<The indices of the AudioProbes.*/
+    float weights[MAX_INTERP_APROBES]; /**<The weights that correspond to each probe's value.*/
     
 } AudioProbeWeights;
 
-
-#define FDN_LINES 4
-
-typedef struct {
-    float buffer[FDN_LINES][8192]; 
-    int write_pos[FDN_LINES];
-    int delay_lengths[FDN_LINES]; 
-    float feedback_gain;  
-} SimpleFDN;
-
-
+/**
+ * @brief Audio portals used for determining paths to transmit sound when emitter and listener are occluded.
+ */
 typedef struct AudioPortal
 {
 
-    vec3 pos;
-    Vector adjacent_portals; // int
+    vec3 pos; /**<The position of the portal.*/
+    Vector adjacent_portals; /**<int - Vector of portals that can be seen from this one.*/
     
 } AudioPortal;
 
 
 
-#define PARTITION_BUFFERS 4
+#define PARTITION_BUFFERS 4 /**<The amount of audio partition back buffers.*/
+
+/**
+ * @brief The data for the thread that prepares IRs by rotating then convolving them with an HRTF before it presents it to the audio thread.
+ * @see audio_ir.c
+ */
 typedef struct HRTFThreadData
 {
 
-    SDL_Thread * t;
-    SDL_mutex * mutex;
-    SDL_mutex * ptr_swap_mutex;
-    SDL_cond * work_cond;
+    SDL_Thread * t; /**<The thread object.*/
+    SDL_mutex * mutex; /**<The mutex used when signalling a job.*/
+    SDL_cond * work_cond; /**<The job signal.*/
 
-    SDL_SpinLock ir_swap_lock;
+    SDL_SpinLock ir_swap_lock; /**<The spinlock used when presenting an IR to the audio thread.*/
 
-    vec3 last_pos;
-    vec3 last_fwd;
+    vec3 last_pos; /**<The last job's position.*/
+    vec3 last_fwd; /**<The last job's direction.*/
 
-    bool stop_requested;
-    bool new_probe_ready;
+    bool stop_requested; /**<Used to quit gracefully.*/
+    bool new_probe_ready; /**<If a new job is ready.*/
 
-    AudioProbeWeights w;
+    AudioProbeWeights w; /**<Current job's weights.*/
 
-    PartitionTable tables[PARTITION_BUFFERS];
+    PartitionTable tables[PARTITION_BUFFERS]; /**<The partitions for overlap-add quad-buffered. Writes into the empty one.*/
 
-    PartitionTable * FRONT;
-
-    int current_probe; 
-    
+    PartitionTable * FRONT; /**<The current partition presented to the audio thread.*/
     
 } HRTFThreadData;
 
+/**
+ * @brief Scratch buffers and dimensions used for audio convolution FFTs.
+ * @see init_audio_scratch_buffers()
+ * @see allocate_audio_scratch_hrtf()
+ */
 typedef struct AudioScratchBuffers
 {
 
-    SDL_mutex * aprobe_mutex;
+    SDL_mutex * aprobe_mutex; /**<Used when loading new APVs to avoid concurrency with the HRTF thread.*/
 
-    int block_size;
-    int padded_len;
-    int complex_len;
-    int final_ir_len;
-    int ir_len;
-    int complex_ir_len;
-    float * HRTF_IR_IN;
-    
-    fftwf_plan fwd_plan;
-    fftwf_plan static_fwd_plan;
-    fftwf_plan IR_fwd_plan;
-    fftwf_plan IR_bwd_plan;
-    fftwf_plan bwd_plan;
+    int block_size; /**<Currently 512.*/
+    int padded_len; /**<Currently 1024.*/
+    int complex_len; /**<(padded_len / 2) + 1*/
+    int final_ir_len; /**<MAX_SAMPLES + hrtf_length - 1*/
+    int ir_len; /**<MAX_IR_SAMPLES + hrtf_length - 1 and rounded up to next power of 2.*/
+    int complex_ir_len; /**<(padded_len / 2) + 1*/
 
-    float * IR_SUM_L;
-    float * IR_SUM_R;
-    fftwf_complex * IR_SUM_L_FWD;
-    fftwf_complex * IR_SUM_R_FWD;
-    float * STATIC_HRTF_L[SH_MAX];
-    float * STATIC_HRTF_R[SH_MAX];
-    fftwf_complex * STATIC_HRTF_L_FWD[SH_MAX];
-    fftwf_complex * STATIC_HRTF_R_FWD[SH_MAX];
-    float * IR_ROT[SH_MAX]; 
-    fftwf_complex * IR_ROT_FWD[SH_MAX];
+    float * HRTF_IR_IN; /**<Buffer used when splitting IR into partitions.*/
+    fftwf_plan fwd_plan; /**<The plan used when splitting IR into partitions.*/
+    fftwf_plan static_fwd_plan; /**<Unusued - was used when parsing in sofas.*/
+    fftwf_plan IR_fwd_plan; /**<Forward plan used when convolving IR with HRTF.*/
+    fftwf_plan IR_bwd_plan; /**<Inverse plan used when convolving IR with HRTF.*/
+    fftwf_plan bwd_plan; /**<Unusued - was used when parsing in sofas.*/
+
+    float * IR_SUM_L; /**<Used to hold the output of the inverse FFT of the IR with the HRTF.*/
+    float * IR_SUM_R; /**<Used to hold the output of the inverse FFT of the IR with the HRTF.*/
+    fftwf_complex * IR_SUM_L_FWD; /**<Used to accumulate the complex multiply of IR with the HRTF.*/
+    fftwf_complex * IR_SUM_R_FWD; /**<Used to accumulate the complex multiply of IR with the HRTF.*/
+    float * STATIC_HRTF_L[SH_MAX]; /**<The static HRTF loaded from HRTF.bin.*/
+    float * STATIC_HRTF_R[SH_MAX]; /**<The static HRTF loaded from HRTF.bin.*/
+    fftwf_complex * STATIC_HRTF_L_FWD[SH_MAX]; /**<The forward FFT of the static HRTF loaded from HRTF.bin.*/ 
+    fftwf_complex * STATIC_HRTF_R_FWD[SH_MAX]; /**<The forward FFT of the static HRTF loaded from HRTF.bin.*/ 
+    float * IR_ROT[SH_MAX]; /**<The IR with rotated SH.*/
+    fftwf_complex * IR_ROT_FWD[SH_MAX]; /**<The forward FFT of the rotated IR.*/
 
 } AudioScratchBuffers;
 
 
+/**
+ * @brief The IR convolver node used to process frames in the audio thread.
+ * @see init_audio_scratch_buffers()
+ * @see convolver_node_process_pcm_frames()
+ */
 typedef struct ConvolverNode
 {
 
-    ma_node_base base;
-    ma_mutex lock;
-    int block_size;
-    int padded_len;
-    int complex_len;
-    // StereoAudio LR;
-    PartitionTable * ir;
-    PartitionTable * prev_ir;
+    ma_node_base base; /**<miniaudio node base.*/
+    ma_mutex lock; /**<Unused mutex for the audio thread.*/
+    int block_size; /**<Currently 512.*/
+    int padded_len; /**<Currently 1024.*/
+    int complex_len; /**<(padded_len / 2) + 1*/
+    int tail_len; /**<Currently: = block_size*/
+    PartitionTable * ir; /**<The pointer to the new IR to convolve with.*/
+    PartitionTable * prev_ir; /**<The pointer to the previous IR we were convolving with.*/
 
+    fftwf_plan fwd_plan; /**<Forward plan used when convolving IR with current audio stream.*/
+    fftwf_plan bwd_plan; /**<Inverse plan used when convolving IR with current audio stream.*/
 
-    fftwf_plan fwd_plan;
-    fftwf_plan bwd_plan;
-
-    fftwf_complex * MONO_FWD;
-    fftwf_complex * AUDIO_HISTORY[NUM_PARTITIONS_MAX];
+    fftwf_complex * MONO_FWD; /**<Contains the output of the forward FFT of IR with current audio stream.*/
+    fftwf_complex * AUDIO_HISTORY[NUM_PARTITIONS_MAX]; /**<Contains the history of MONO_FWD up to NUM_PARTITIONS_MAX.*/
     
-    fftwf_complex * PREV_SUM_L;
-    fftwf_complex * PREV_SUM_R;
+    fftwf_complex * PREV_SUM_L; /**<The complex multiply of the previous IR with the partitions.*/
+    fftwf_complex * PREV_SUM_R; /**<The complex multiply of the previous IR with the partitions.*/
+    fftwf_complex * SUM_L; /**<The complex multiply of the new IR with the partitions.*/
+    fftwf_complex * SUM_R; /**<The complex multiply of the new IR with the partitions.*/
 
-    fftwf_complex * SUM_L;
-    fftwf_complex * SUM_R;
-
-    int history_head;
+    int history_head; /**<Contains the current position in the audio history buffer.*/
     
-    float * PREV_LEFT_OUT;
-    float * PREV_RIGHT_OUT;
-    float * LEFT_OUT;
-    float * RIGHT_OUT;
+    float * PREV_LEFT_OUT; /**<Contains the output of the inverse FFT of the previous IR with current audio stream.*/
+    float * PREV_RIGHT_OUT; /**<Contains the output of the inverse FFT of the previous IR with current audio stream.*/
+    float * LEFT_OUT; /**<Contains the output of the inverse FFT of the new IR with current audio stream.*/
+    float * RIGHT_OUT; /**<Contains the output of the inverse FFT of the new IR with current audio stream.*/
 
-    int tail_len;
-    float * PREV_TAIL_LEFT;
-    float * PREV_TAIL_RIGHT;
-    float * TAIL_LEFT;
-    float * TAIL_RIGHT;
+    float * PREV_TAIL_LEFT; /**<Contains the tail of the previous IR.*/
+    float * PREV_TAIL_RIGHT; /**<Contains the tail of the previous IR.*/
+    float * TAIL_LEFT; /**<Contains the tail of the new IR.*/
+    float * TAIL_RIGHT; /**<Contains the tail of the new IR.*/
 
-
-    int crossfade_pos;
-    bool crossfading;
+    int crossfade_pos; /**<The amount of samples crossfaded so far.*/
+    bool crossfading; /**<Indicates if it is still crossfading between an old and new IR.*/
     
     
 } ConvolverNode;
 
 
+/**
+ * @brief An audio emitter that plays audio possibily from a certain position or at a certain time.
+ * @see audio/audio.c
+ * @see AUDIO_EMITTERS
+ */
 typedef struct AudioEmitter
 {
 
-    char path[256];
-    uint32_t id;
-    ma_sound sound_obj;
-    ma_lpf_node lpf_node;
-    float current_cutoff;
-    float base_volume;
-    float current_volume;
-    float current_distance;
-    vec3 pos;
-    vec3 virtual_pos;
-    bool is_loaded;
-    bool is_occludable;
-    bool is_loop;
-    bool free;
+    char path[256]; /**<The path to the sound.*/
+    uint32_t id; /**<The static ID of the AudioEmitter inside of AUDIO_EMITTERS.*/
+    ma_sound sound_obj; /**<The miniaudio sound obj.*/
+    ma_lpf_node lpf_node; /**<The low pass filter for this emitter.*/
+    float current_cutoff; /**<The current low pass cutoff.*/
+    float base_volume; /**<The starting volume.*/
+    float current_volume; /**<The current volume.*/
+    float current_distance; /**<The current distance from listener.*/
+    vec3 pos; /**<The position of the emitter.*/
+    vec3 virtual_pos; /**<The position that we spatialize the emitter at (for example: at the corner instead of behind the wall)*/
+    bool is_loaded; /**<If the emitter is loaded in miniaudio.*/
+    bool is_occludable; /**<If the emitter can be occluded and needs to go through the portal system.*/
+    bool is_loop; /**<If the emitter loops.*/
+    bool free; /**<Indicates if this emitter is empty or can be replaced.*/
     
 } AudioEmitter;
 
 
+/**
+ * @brief Gbuffer textures. Gbuffer is unused currently as it is has been repurposed as a depth-only pass but is toggleable.
+ */
 typedef enum GBufferTextureNames
 {
      GVEL, GUV, GNORMAL, GPOMDEPTH, GALBEDO, GEXTRA
 } GBufferTextureNames;
 
+
+/**
+ * @brief The depth modes for initializing depth textures.
+ * @see generate_gl_texture()
+ */
 typedef enum DepthMode
 {
      DEPTH_MODE_NONE, DEPTH_MODE_NO_HW, DEPTH_MODE_HW
 } DepthMode;
 
 
+/**
+ * @brief Texture abstraction for init. Each field corresponds to an OpenGL equivalent.
+ * @see generate_gl_texture()
+ * @see init_gl_texture()
+ */
 typedef struct GLTexture
 {
 
@@ -477,14 +517,18 @@ typedef struct GLTexture
     GLsizei w, h, d;
     GLsizei levels;
     vec4 border_color;
-    GLuint i;
-    DepthMode dm;
-    bool multisampled;
-    int samples;
-    bool fixed_sample_locations;
+    GLuint i; /**<The image handle for this texture.*/
+    DepthMode dm; /**<If this is a depth texture and what mode it is.*/
+    bool multisampled; /**<If this is a multisampled texture.*/
+    int samples; /**<If multisampled, how many samples.*/
+    bool fixed_sample_locations; /**<This is set to true if multisampled and is standard for MSAA.*/
     
 } GLTexture;
 
+/**
+ * @brief The abstraction for a renderbuffer in OpenGL. Mainly used for multisampled contexts.
+ * @see init_fbo()
+ */
 typedef struct GLRenderbuffer
 {
     
@@ -493,44 +537,74 @@ typedef struct GLRenderbuffer
     GLsizei w, h, d;
     bool multisampled;
     int samples;
+
 } GLRenderbuffer;
+
+
+/**
+ * @brief The abstraction for a framebuffer in OpenGL.
+ * @see init_fbo()
+ */
 typedef struct Framebuffer
 {
-    GLuint fbo;
-    GLTexture texture[6];
-    GLRenderbuffer renderbuffers[6];
-    int texture_count;
-    int rbo_count;
-    GLTexture depth_texture;
-    GLRenderbuffer depth_rbo;
-    int w, h;
+
+    int texture_count; /**<The amount of GLTextures bound.*/
+    int rbo_count; /**<The amount of GLRenderbuffers bound.*/
+    GLuint fbo; /**<The handle for this fbo.*/
+    GLTexture texture[6]; /**<The textures bound to this fbo.*/
+    GLRenderbuffer renderbuffers[6]; /**<The renderbuffers bound to this fbo.*/
+    GLTexture depth_texture; /**<The normal depth texture, if there is one.*/
+    GLRenderbuffer depth_rbo; /**<The renderbuffer depth texture, if there is one.*/
+    int w, h; /**<Dimensions.*/
     
 } Framebuffer;
 
+/**
+ * @brief The selection mode for the editor. Depending on which one is enabled, you can select specific structures via clicking in edit mode.
+ * @see core/input.c
+ */
 typedef enum SelectionMode
 {
 
-    SELMODE_MN,
-    SELMODE_LIGHT,
-    SELMODE_LPV,
-    SELMODE_RPROBE,
-    SELMODE_ENTITY,
-    SELMODE_TEXTBOX,
-    SELMODE_UIELEMENT,
-    SELMODE_APV,
-    SELMODE_APORTAL,
-    SELMODE_AEM,
-    SELMODE_ASSETINSTANCE,
+    SELMODE_MN, /**<MeshNode.*/
+    SELMODE_LIGHT, /**<Light*/
+    SELMODE_LPV, /**<Lighting ProbeVolume (LPV)*/
+    SELMODE_RPROBE, /**<ReflectionProbe*/
+    SELMODE_ENTITY, /**<Entity*/
+    SELMODE_TEXTBOX, /**<TextBox*/
+    SELMODE_UIELEMENT, /**<UIElement*/
+    SELMODE_APV, /**<Audio ProbeVolume (APV)*/
+    SELMODE_APORTAL, /**<AudioPortal*/
+    SELMODE_AEM, /**<AudioEmitter*/
+    SELMODE_ASSETINSTANCE, /**<AssetInstance*/
     
 } SelectionMode;
 
 
 
+/**
+ * @brief Editor settings and engine global variables that can be changed through the editor. Also houses flags and indices for the editor UI.
+ * @see editor/editor.c
+ */
 typedef struct EditorSettings
 {
 
-    DebugView current_debug_view;
+    /**
+     * @name Debug View Selection
+     * @brief Changes branches in main and postprocess shaders.
+     * @see render/dynamic.frag
+     * @see render/postprocess.frag
+     * @{
+     */
+    DebugView current_debug_view; 
     PostprocessDView pp_dview;
+
+    /**
+     * @name Menu Toggles
+     * @brief Toggles editor menus.
+     * @see render_editor_menu()
+     * @{
+     */
     bool editor_menu_open;
     bool editor_mode;
     bool mesh_node_menu_open;
@@ -545,14 +619,19 @@ typedef struct EditorSettings
     bool ui_menu_open;
     bool asset_instance_menu_open;
     bool opening_menu;
+    /** @} */
 
     SelectionMode SELMODE;
 
     bool element_drag_mode;
     bool text_box_drag_mode;
 
-    
-
+    /**
+     * @name Rendering Toggles
+     * @brief Toggles for individual rendering settings that change the rendering loop.
+     * @see render_main_menu()
+     * @{
+     */
     bool SSAO;
     bool SSR;
     bool DOF;
@@ -566,18 +645,40 @@ typedef struct EditorSettings
     bool ACES;
     bool UI;
     bool FULL_GBUFFER;
+    /** @} */
 
+    /**
+     * @name Depth of field options
+     * @brief Changes the parameters for DOF.
+     * @see render_main_menu()
+     * @see render/coc.frag
+     * @see render/postprocess.frag
+     * @{
+     */
     bool dof_expanded;
     float DOF_fstop;
     float DOF_focal_length;
     float DOF_sensor_height;
     float DOF_max_blur_radius;
+    /** @} */
 
-    bool wireframe_toggled;
+    bool wireframe_toggled; /**<Shows wireframes around many structures: lights, rprobes, aprobes, aportals, aabbs, etc.*/
 
+    /**
+     * @brief Tracks rendering dimensions in editor menu.
+     * @see render_main_menu()
+     * @{
+     */
     int res_width;
     int res_height;
+    /** @} */
 
+    /**
+     * @name Selected IDs
+     * @brief Tracks selected ids for many engine structures.
+     * @see core/input.c
+     * @{
+     */
     int selected_material_mn_id;
     int selected_sm_id;
     int selected_gltf_file_id;
@@ -599,42 +700,48 @@ typedef struct EditorSettings
     int selected_ui_hover_id;
     int selected_asset_instance_id;
     int selected_asset_instance_mn_id;
+    int selected_r_probe;
+    /** @} */
 
-    RayHit hit;
-
-    vec3 rotation_axis;
-    float rotation_angle;
+    vec3 rotation_axis; /**<The rotation axis for rotation operations in the editor.*/
+    float rotation_angle; /**<The current angle for rotation operations in the editor.*/
     
-
+    /**
+     * @name PV Overlay
+     * @brief Toggles debug overlays for the OBBs for ProbeVolumes.
+     * @{
+     */
     bool audio_probe_volume_overlay;
     bool lighting_probe_volume_overlay;
+    /** @} */
 
-    int lm_iterations;
-    int probe_iterations;
-    float texels_per_uv_unit;
-    float ao_threshold;
-    int ao_iterations;
-    int selected_r_probe;
+    /**
+     * @name Light menu options
+     * @brief Handles various lighting and lightmap options.
+     * @see render_light_menu()
+     * @see light/lightmap.c
+     * @{
+     */
+    int lm_iterations; /**<The amount of iterations to bake a lightmap.*/
+    int probe_iterations; /**<The amount of iterations to bake each probe.*/
+    float texels_per_uv_unit; /**<Controls the texel density of the uv lightmapper.*/
+    float ao_threshold; /**<Controls the distance threshold for AO detection.*/
+    int ao_iterations; /**<Controls how many iterations per lightmap iteration perform the AO check.*/
+    bool mfactor_enabled; /**<Controls how many iterations per lightmap iteration perform the AO check.*/
+    float mfactor; /**<Controls how many iterations per lightmap iteration perform the AO check.*/
+    /** @} */
 
-    bool audio_probes_overlay;
-    bool audio_probe_location_override;
-    AABB audio_probe_override_aabb;
-    int audio_probe_iterations;
-    int audio_probe_bounces;
+    int audio_probe_iterations; /**<The amount of iterations (sample rays) to bake per AudioProbe.*/
+    int audio_probe_bounces; /**<The amount of bounces to accept per AudioProbe iteration.*/
 
-    float render_framerate_target;
+    float render_framerate_target; /**<The target framerate for rendering and processing ui events (a cap).*/
 
-    float mfactor;
     float reverb_wet;
     float volume;
-    bool mfactor_enabled;
-    
-    
+        
     float obb_axis_x_angle;
     float obb_axis_y_angle;
     float obb_axis_z_angle;
-
-    
 
     AABB lm_aabb;
 
@@ -2390,7 +2497,6 @@ typedef struct SceneData
 
     LightBVH light_bvh;
 
-    ProbeVolume LOADED_PV[MAX_PROBE_VOLUMES];
     APV LOADED_AUDIO_PV[MAX_AUDIO_PROBE_VOLUMES];
     bool LOADED_AUDIO_PV_FLAG[MAX_AUDIO_PROBE_VOLUMES];
     LPV LOADED_LIGHTING_PV[LPV_SLOTS];
@@ -2737,8 +2843,6 @@ extern GLuint64 mc_time;
 extern GLuint d_q;
 extern GLuint mc_q;
 extern bool within_planet_atmosphere;
-float noise3d(vec3 p);
-void render_sky_cubemap();
 
 
 

@@ -185,7 +185,7 @@ GLuint
 
         if (!data) {
 
-            printf("Failed to load image: %s\\n", path);
+            printf("Failed to load image: %s\n", c);
             return 0;
         }
         

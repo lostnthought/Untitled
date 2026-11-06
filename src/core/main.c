@@ -19,6 +19,7 @@
 #include "light/lightmap.h"
 #include "load/load.h"
 #include "utilities/utilities.h"
+#include "utilities/engine_utilities.h"
 #include "core/acceleration.h"
 #include "ECS/entity.h"
 #include "editor/editor.h"
@@ -64,7 +65,6 @@ AudioEmitter AUDIO_EMITTERS[MAX_AUDIO_EMITTERS];
 
 float * STATIC_HRTF_LEFT[SH_MAX] = {0};
 float * STATIC_HRTF_RIGHT[SH_MAX] = {0};
-StereoAudio STEREO_AUDIO = {0};
 int HRTF_LENGTH = 0;
 alignas(32) ConvolverNode CONVOLVER_NODE = {0};
 AudioScratchBuffers AUDIO_SCRATCH = {0};
@@ -396,9 +396,6 @@ bool draw_dirty;
 const vec3 left_leg_offset = {0, -0.1f, 0};
 const vec3 right_leg_offset = {0, 0.1f, 0};
 
-Cluster CLUSTER_GRID[TOTAL_CLUSTERS];
-
-uint32_t GLOBAL_INDEX_LIST[TOTAL_CLUSTERS * MAX_LIGHTS_PER_CLUSTER];
 
 // DONE
 // save load - import asset via dropdown, spawn assets via asset dropdown

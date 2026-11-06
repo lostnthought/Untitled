@@ -1,7 +1,6 @@
-
-
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
+
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"

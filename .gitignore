@@ -20,7 +20,7 @@ scenes/
 sofas/
 sounds/
 _ui/
-
+docs/
 .ignore
 .clangd
 compile_commands.json

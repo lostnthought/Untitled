@@ -20,7 +20,6 @@
 #include <stdio.h>
 
 
-float PRECOMPUTED_NOISE[NUM_BANDS][MAX_SAMPLES];
 float BAND_IMPULSES[AUDIO_NUM_BANDS][AUDIO_KERNEL_SIZE];
 
 
@@ -428,8 +427,6 @@ void load_emitter(AudioEmitter * emitter, const char* filepath, bool is_loop, bo
         }
     }
 
-
-
     ma_sound_set_spatialization_enabled(&emitter->sound_obj, MA_TRUE);
 }
 
@@ -550,54 +547,11 @@ void audio_update(Player * player) {
 void SDLAudioCallback(void* pUserData, Uint8* pStream, int len) {
 
     ma_engine* pEngine = (ma_engine*)pUserData;
-    
-
 
     ma_uint64 frames_to_read = len / (sizeof(float) * 2);
     memset(pStream, 0, len);
     
     ma_engine_read_pcm_frames(pEngine, pStream, frames_to_read, NULL);
-}
-
-
-void populate_audio_probes()
-{
-
-    SDL_LockMutex(AUDIO_SCRATCH.aprobe_mutex);
-    AABB scene_aabb = (EDITOR_SETTINGS.audio_probe_location_override) ? EDITOR_SETTINGS.audio_probe_override_aabb : GLOBALS.scene_data.aabb;
-
-    float spacing = GLOBALS.aprobe_spacing;
-
-    vec3 world_min = {floorf(scene_aabb.min_x), floorf(scene_aabb.min_y), floorf(scene_aabb.min_z)};
-
-
-    vec3 world_size = {ceilf(scene_aabb.max_x) - world_min.x, ceilf(scene_aabb.max_y ) - world_min.y, ceilf(scene_aabb.max_z) - world_min.z};
-
-    ivec3 probe_tex_size = {ceilf(world_size.x / spacing) + 1, ceilf(world_size.y / spacing) + 1, ceilf(world_size.z / spacing) + 1};
-    
-    GLOBALS.aprobe_size = probe_tex_size;
-    if (GLOBALS.audio_probes) free(GLOBALS.audio_probes);
-    GLOBALS.audio_probes = NULL;
-    GLOBALS.audio_probes = calloc(probe_tex_size.x * probe_tex_size.y * probe_tex_size.z, sizeof(AudioProbe));
-    if (!GLOBALS.audio_probes)
-    {
-        SDL_UnlockMutex(AUDIO_SCRATCH.aprobe_mutex);
-        return;
-    }
-
-    GLOBALS.aprobe_start = world_min;
-    for (int z = 0; z < GLOBALS.aprobe_size.z; z++)
-    for (int y = 0; y < GLOBALS.aprobe_size.y; y++)
-    for (int x = 0; x < GLOBALS.aprobe_size.x; x++)
-    {
-
-        int idx = z * GLOBALS.aprobe_size.y * GLOBALS.aprobe_size.x + y * GLOBALS.aprobe_size.x + x;
-        GLOBALS.audio_probes[idx].pos = vec3_add(world_min, vec3_scale((vec3){x, y, z}, spacing));
-        
-    }
-
-    SDL_UnlockMutex(AUDIO_SCRATCH.aprobe_mutex);
-
 }
 
 
@@ -1347,74 +1301,6 @@ void process_probe_chunk(int start, int count, GLuint aprobe_ssbo)
     
 }
 
-
-
-
-void bake_audio_probes()
-{
-
-
-    SDL_LockMutex(AUDIO_SCRATCH.aprobe_mutex);
-    if (!GLOBALS.audio_probes)
-    {
-        populate_audio_probes();
-        if (!GLOBALS.audio_probes)
-        {
-            
-            SDL_UnlockMutex(AUDIO_SCRATCH.aprobe_mutex);
-            return;
-        }
-    }
-
-    int APROBE_COUNT = GLOBALS.aprobe_size.x * GLOBALS.aprobe_size.y * GLOBALS.aprobe_size.z;
-    AudioProbeGPU * aprobe_init_data = calloc(APROBE_COUNT, sizeof(AudioProbeGPU));
-
-
-    for (int i = 0; i < APROBE_COUNT; i++)
-    {
-        aprobe_init_data[i].pos = GLOBALS.audio_probes[i].pos;
-    }
-    
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, VERTEX_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, TRI_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, MESH_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, MESH_BVH_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, SCENE_BVH_SSBO); 
-    
-    GLuint aprobe_ssbo;
-    glGenBuffers(1, &aprobe_ssbo);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, aprobe_ssbo);
-    glBufferStorage(GL_SHADER_STORAGE_BUFFER, sizeof(AudioProbeGPU) * APROBE_COUNT, aprobe_init_data, GL_MAP_READ_BIT);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 9, aprobe_ssbo); 
-    free(aprobe_init_data);
-
-    int MAX_SAMPLES_PER_PROBE = EDITOR_SETTINGS.audio_probe_iterations * EDITOR_SETTINGS.audio_probe_bounces;
-    int BOUNCE_SSBO_SIZE = APROBE_COUNT * MAX_SAMPLES_PER_PROBE;
-    size_t BOUNCE_SSBO_BYTE_SIZE = BOUNCE_SSBO_SIZE * sizeof(AudioSampleGPU);
-    const size_t SAMPLE_SSBO_CHUNK_SIZE = 400000000;
-    int chunk_count = MAX(BOUNCE_SSBO_BYTE_SIZE / SAMPLE_SSBO_CHUNK_SIZE, 1);
-    int probes_per_chunk = APROBE_COUNT / chunk_count;
-    for (int i = 0; i < chunk_count; i++)
-    {
-        size_t current_byte_size = SAMPLE_SSBO_CHUNK_SIZE;
-        if (i == chunk_count - 1)
-        {
-            current_byte_size = BOUNCE_SSBO_BYTE_SIZE - chunk_count * SAMPLE_SSBO_CHUNK_SIZE;
-        }
-        int start = i * probes_per_chunk;
-        process_probe_chunk(start, probes_per_chunk, aprobe_ssbo);
-
-    }
-    
-    glDeleteBuffers(1, &aprobe_ssbo);
-    
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 7, INSTANCE_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 8, TEXT_BOX_SSBO); 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 10, RPROBE_SSBO); 
-
-    SDL_UnlockMutex(AUDIO_SCRATCH.aprobe_mutex);
-    
-}
 
 void bake_audio_probe_volume(ProbeVolume * pv)
 {

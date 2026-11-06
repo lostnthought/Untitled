@@ -333,6 +333,10 @@ typedef struct ClipVertex
     vec3 p;
     int edge0, edge1;
 } ClipVertex;
+typedef struct {
+    uint64_t start;
+    uint64_t freq;
+} Timer;
 
 
 #endif

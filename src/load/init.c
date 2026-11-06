@@ -1537,7 +1537,7 @@ static void convolver_node_process_pcm_frames(ma_node* pNode, const float** ppFr
 
     }
 
-    fft_channels(node, node->block_size, CONVOLVER_NODE.crossfading);
+    fft_channels(node, CONVOLVER_NODE.crossfading);
     
     float norm = 1.0f / node->padded_len;
     for (int i = 0; i < node->block_size; i++)

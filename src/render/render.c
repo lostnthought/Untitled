@@ -1064,7 +1064,6 @@ void populate_draw_commands(DrawCommand * dcs, int * draw_command_cnt)
             }
 
             dc->start_index = sms[j].draw_offset;
-            
             dc->fwd_shader = mats[dc->material].fwd_shader;
             dc->gbuffer_shader = mats[dc->material].gbuffer_shader;
             dc->index_count = sms[j].index_count;
@@ -2548,7 +2547,6 @@ void render_to_cubemap_face(Camera * rprobe_cam, GLuint render_fbo, int render_w
                 glUseProgram(DEPTH_PRE_PASS_SHADER[shader].program);
             }
 
-
         }
         size_t start_array_offset = (sizeof(DrawArraysIndirectCommand) * starting_array_offset);
         size_t start_element_offset = (sizeof(DrawElementsIndirectCommand) * starting_element_offset);
@@ -2786,7 +2784,6 @@ void render_to_cubemap_face(Camera * rprobe_cam, GLuint render_fbo, int render_w
     if (EDITOR_SETTINGS.DOF && !probe_bake)
     {
             
-
         glUseProgram(COC_SHADER.program);
         glBindFramebuffer(GL_FRAMEBUFFER, COC_FBO.fbo);
         glViewport(0, 0, COC_FBO.w, COC_FBO.h);
@@ -3181,24 +3178,6 @@ void render()
         if (EDITOR_SETTINGS.audio_menu_open)
         {
 
-            if (GLOBALS.audio_probes && EDITOR_SETTINGS.audio_probes_overlay)
-            {
-            
-                for (int i = 0; i < GLOBALS.aprobe_size.x * GLOBALS.aprobe_size.y * GLOBALS.aprobe_size.z; i++)
-                {
-                    AudioProbe * p = &GLOBALS.audio_probes[i];
-                    AABB aabb;
-                    aabb.center = p->pos;
-                    aabb.extents = (vec3){EDITOR_APROBE_SIZE, EDITOR_APROBE_SIZE, EDITOR_APROBE_SIZE};
-                    if (DEBUG_LINE_COUNT + 24 >= DEBUG_LINES_MAX) break;
-                    aabb_to_vertices(&DEBUG_LINES[DEBUG_LINE_COUNT], &aabb, (vec3){0,0,0});
-                    for (int j = 0; j < 24; j++)
-                    {
-                        DEBUG_LINES[DEBUG_LINE_COUNT + j].color = (vec3){1,0.6,0};
-                    }
-                    DEBUG_LINE_COUNT += 24;
-                }
-            }
 
             AudioPortal * portals = CAST_VEC(GLOBALS.audio_portals, AudioPortal);
             for (int i = 0; i < GLOBALS.audio_portals.count; i++)
@@ -3283,6 +3262,7 @@ void render()
         ReflectionProbe * probes = CAST_VEC(GLOBALS.scene_data.reflection_probes, ReflectionProbe);
         for (int i = 0; i < GLOBALS.scene_data.reflection_probes.count; i++)
         {
+
             ReflectionProbe * probe = &probes[i];
             AABB aabb = probe->aabb;
             if (DEBUG_LINE_COUNT + 24 >= DEBUG_LINES_MAX) break;
@@ -3303,7 +3283,6 @@ void render()
                 DEBUG_LINES[DEBUG_LINE_COUNT + j].color = (vec3){0,1,1};
             }
             DEBUG_LINE_COUNT += 24;
-
         
         }
 

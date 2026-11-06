@@ -123,103 +123,7 @@ void load_hrtf_from_binary(const char * filename)
 }
 
 
-// void ambisonic_matrix_construction(const char * filename)
-// {
-
-//     const float INV_LEN = 0.5257311121191336f;
-//     const float PHI_INV_LEN = 0.8506508083520399f;
-//     const float PHI = 1.618033988749895f;
-
-//     vec3 spos[12];
-
-//     float azimuth[12] = {36.0f, 108.0f, 180.0f, 252.0f, 324.0f, 72.0f, 144.0f, 216.0f, 288.0f, 0.0f, 0.0f, 0.0f};
-//     float elevation[12] = {-25.0f, -25.0f, -25.0f, -25.0f, -25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 25.0f, 90.0f, -90.0f};
-
-//     for (int i = 0; i < 12; i++)
-//     {
-//         spos[i] = spherical_to_cartesian(azimuth[i], elevation[i], 1);
-//     }
-    
-
-//     float * HRTF_LEFT[12];
-//     float * HRTF_RIGHT[12];
-//     float DELAY_L[12] = {0};
-//     float DELAY_R[12] = {0};
-
-//     int err;
-//     struct MYSOFA_EASY * sofa = mysofa_open_no_norm(filename, 48000, &HRTF_LENGTH, &err);
-
-//     if (!sofa) return;
-
-//     for (int i = 0; i < 12; i++)
-//     {
-
-//         HRTF_LEFT[i] = malloc(sizeof(float) * HRTF_LENGTH);
-//         HRTF_RIGHT[i] = malloc(sizeof(float) * HRTF_LENGTH);
-
-//         float dll;
-//         float dlr;
-//         mysofa_getfilter_float(sofa, spos[i].x, spos[i].y, spos[i].z, HRTF_LEFT[i], HRTF_RIGHT[i], &DELAY_L[i], &DELAY_R[i]);
-        
-//     }
-
-
-
-//     float SADIE_DECODER[12][SH_MAX] =
-//     {
-    
-//         {0.081163,  0.129710, -0.111625,  0.178530,  0.267396, -0.177200, -0.081163, -0.243895,  0.086882},
-//         {0.081163,  0.209875, -0.111625, -0.068193, -0.165260, -0.286716, -0.081163,  0.093160, -0.227460},
-//         {0.081163,  0.000000, -0.111625, -0.220676, -0.000000,  0.000000, -0.081163,  0.301471,  0.281156},
-//         {0.081163, -0.209875, -0.111625, -0.068193,  0.165260,  0.286716, -0.081163,  0.093160, -0.227460},
-//         {0.081163, -0.129710, -0.111625,  0.178530, -0.267396,  0.177200, -0.081163, -0.243895,  0.086882},
-//         {0.081163,  0.209875,  0.111625,  0.068193,  0.165260,  0.286716, -0.081163,  0.093160, -0.227460},
-//         {0.081163,  0.129710,  0.111625, -0.178530, -0.267396,  0.177200, -0.081163, -0.243895,  0.086882},
-//         {0.081163, -0.129710,  0.111625, -0.178530,  0.267396, -0.177200, -0.081163, -0.243895,  0.086882},
-//         {0.081163, -0.209875,  0.111625,  0.068193, -0.165260, -0.286716, -0.081163,  0.093160, -0.227460},
-//         {0.081163,  0.000000,  0.111625,  0.220676, -0.000000, -0.000000, -0.081163,  0.301471,  0.281156},
-//         {0.094186, -0.000000,  0.264127,  0.000000, -0.000000, -0.000000,  0.405814,  0.000000,  0.000000},
-//         {0.094186, -0.000000, -0.264127,  0.000000,  0.000000,  0.000000,  0.405814, -0.000000, -0.000000}
-//     };
-
-//     const float max_re_weights[9] = {
-//         1.000f, 
-//         0.866f, 0.866f, 0.866f, 
-//         0.500f, 0.500f, 0.500f, 0.500f, 0.500f
-//     };
-    
-
-//     allocate_audio_scratch_hrtf(HRTF_LENGTH);
-
-//     for (int i = 0; i < SH_MAX; i++)
-//     {
-//         for (int j = 0; j < HRTF_LENGTH; j++)
-//         {
-//             float sum_L = 0;
-//             float sum_R = 0;
-//             for (int k = 0; k < 12; k++)
-//             {
-
-//                 float weight = SADIE_DECODER[k][i] * max_re_weights[i];
-
-//                 sum_L += weight * HRTF_LEFT[k][j];
-//                 sum_R += weight * HRTF_RIGHT[k][j];
-
-//             }
-//             AUDIO_SCRATCH.STATIC_HRTF_L[i][j] = sum_L;
-//             AUDIO_SCRATCH.STATIC_HRTF_R[i][j] = sum_R;
-//         }
-//         fftwf_execute_dft_r2c(AUDIO_SCRATCH.static_fwd_plan, AUDIO_SCRATCH.STATIC_HRTF_L[i], AUDIO_SCRATCH.STATIC_HRTF_L_FWD[i]);
-//         fftwf_execute_dft_r2c(AUDIO_SCRATCH.static_fwd_plan, AUDIO_SCRATCH.STATIC_HRTF_R[i], AUDIO_SCRATCH.STATIC_HRTF_R_FWD[i]);
-
-//     }
-//     save_hrtf_to_binary("./HRTF.bin");
-//     mysofa_close(sofa);
-    
-// }
-
-
-void fft_channels(ConvolverNode * node, int count, bool crossfading)
+void fft_channels(ConvolverNode * node, bool crossfading)
 {
     
 
@@ -382,7 +286,7 @@ void rotate_sh(float * OUT, float SH[SH_MAX], mat3 rot)
     OUT[8] = d4 * s_scale_dst4;    
 }
 
-void update_player_ir(int pidx, PartitionTable * OUT)
+void update_player_ir(PartitionTable * OUT)
 {
 
 
@@ -552,7 +456,7 @@ static int SDLCALL hrtf_worker(void * params)
         }
 
         td->new_probe_ready = false;
-        update_player_ir(td->current_probe, t);
+        update_player_ir(t);
 
             
         SDL_AtomicLock(&td->ir_swap_lock);
