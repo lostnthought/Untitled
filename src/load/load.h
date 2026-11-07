@@ -10,7 +10,6 @@ GLuint load_3d_lut(const char* filepath);
 GLuint load_texture (const char * path, GLint min_filter, GLint mag_filter, GLint wrap_s, GLint wrap_t, bool sRGB);
 int add_image_to_registry(char * filename, GLint min_filter, GLint mag_filter, GLint wrap_s, GLint wrap_t, bool sRGB);
 
-void load_obj(const char *filename);
 void scene_save(const char * name);
 void scene_load(const char * name);
 void scene_save_volumes(const char * name);

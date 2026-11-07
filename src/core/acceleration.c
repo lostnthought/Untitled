@@ -830,12 +830,10 @@ void init_scene_bvh()
     aabb->extents = (vec3){ex_x, ex_y, ex_z};
     
     if (sd->bvh_indices) free(sd->bvh_indices);
-    if (sd->leaf_indices.buffer) free(sd->leaf_indices.buffer);
     if (sd->bvh_nodes.buffer) free(sd->bvh_nodes.buffer);
 
     sd->bvh_indices = malloc(sizeof(size_t) * GLOBALS.mesh_nodes.count);
     AABB * aabbs = malloc(sizeof(AABB) * GLOBALS.mesh_nodes.count);
-    init_vector(&sd->leaf_indices, 0, sizeof(size_t));
     init_vector(&sd->bvh_nodes, 0, sizeof(BVHNode));
 
     int bvh_indices_count = 0;

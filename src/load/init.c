@@ -940,7 +940,6 @@ bool init_globals()
     // init_vector(&GLOBALS.audio_emitters, 0, sizeof(AudioEmitter));
 
     GLOBALS.audio_probes = NULL;
-    GLOBALS.aprobe_size = (ivec3){PROBE_VOLUME_WIDTH,PROBE_VOLUME_HEIGHT,PROBE_VOLUME_DEPTH};
     GLOBALS.msaa_samples = 4;
     LIGHTMAP_DATA.uvs = NULL;
     GLOBALS.probe_tex_size = (ivec3){PROBE_VOLUME_WIDTH, PROBE_VOLUME_HEIGHT, PROBE_VOLUME_DEPTH};
@@ -949,7 +948,6 @@ bool init_globals()
     
     GLOBALS.scene_data.bvh_indices = NULL;
     GLOBALS.scene_data.bvh_nodes.buffer = NULL;
-    GLOBALS.scene_data.leaf_indices.buffer = NULL;
     GLOBALS.scene_data.light_bvh.nodes.buffer = NULL;
     GLOBALS.scene_data.light_bvh.indices = NULL;
     GLOBALS.scene_data.light_bvh.lights.buffer = NULL;
@@ -1004,7 +1002,6 @@ bool init_globals()
     EDITOR_SETTINGS.undo_stack_max_byte_size = 100000000;
 
     GLOBALS.probe_spacing = 0.5f;
-    GLOBALS.aprobe_spacing = 2.0f;
 
     sprintf(asset_dir, "./assets/");
     sprintf(rprobe_dir, "./rprobes/");

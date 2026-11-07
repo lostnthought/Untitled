@@ -22,6 +22,22 @@
 #include <stdatomic.h>
 #include "utilities/types.h"
 
+/**
+ * @defgroup aprobe_group AudioProbe Definitions
+ * @brief All of the required structures for the path traced AudioProbe system.
+ * @{
+ */
+/** @} */
+
+/**
+ * @defgroup audio_group Audio Definitions
+ * @brief All of the required structures for the AudioEmitter system.
+ * @{
+ */
+#define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of AudioEmitter%s*/
+#define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many AudioEmitters an entity can have attached*/
+#define LPF_ORDER 2 /**<Used for miniaudio low pass filters*/
+/** @} */
 
 #define PI 3.14159265358979323846
 
@@ -29,8 +45,13 @@
 #define VIEW_NEAR 0.1 /**<Near plane for player*/
 #define VIEW_FAR 1000.0 /**<Far plane for player*/
 
+
+/**
+ * @brief Required defines for the AudioProbe system.
+ * @addtogroup aprobe_group
+ * @{
+ */
 #define MAX_INTERP_APROBES 4 /**<Max AudioProbe%s that can be sampled at once*/
-#define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of AudioEmitter%s*/
 #define SAMPLE_RATE 48000 /**<Audio sample rate*/
 
 #define IR_SAMPLE_RATE 48000 /**<Sample rate for baked audio IRs*/
@@ -44,20 +65,18 @@
 #define AUDIO_PROBE_BINS 48000 /**<The amount of bins (to reduce max sample size)*/
 #define AUDIO_KERNEL_SIZE 31 /**<Frequency kernel size for distributing samples during audio bake*/
 #define AUDIO_KERNEL_CENTER 15 /**<Center of the kernel for distributing samples during audio bake*/
-
-
 #define AUDIO_NUM_BANDS 6 /**<The amount of bands to use for audio probe baking*/
 
 #define NUM_PARTITIONS_MAX 96 /**<Amount of max partitions to be used for overlap-add for audio probes + 1 for the tail trick*/
 #define NUM_PARTITIONS 95 /**<Amount of max partitions to be used for overlap-add*/
-
-
 /**
  * @brief Audio frequencies for each band for audio probe baking.
  */
 const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f};  
+/** @} */
 
-#define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many AudioEmitters an entity can have attached*/
+
+
 #define MAX_NUKLEAR_EVENTS 256 /**<Max amount of events to poll in one render step*/
 #define MAX_SDL_EVENTS 512 /**<Max amount of events to poll in one render step*/
 #define MAX_MESH_NODES 1024 /**<Maximum MeshNode%s in a scene (used for SSBO sizing)*/
@@ -127,11 +146,10 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 /** @} */
 
 
-#define LPF_ORDER 2 /**<Used for miniaudio low pass filters*/
 
 #define MAX_POINT_LIGHT_SHADOWS_CMA 16 /**<Maximum amount of point light shadows in texture depth*/
 
-#define SH_MAX 9 /**<Second order spherical harmonics*/
+#define SH_MAX 9 /**<\ingroup aprobe_group Second order spherical harmonics*/
 
 #define MAX_RPROBE_MIPS 1 /**<The amount of mips to allocate for rprobes*/
 
@@ -169,7 +187,6 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 #define LPV_COUNT (PROBE_VOLUME_WIDTH * PROBE_VOLUME_HEIGHT * PROBE_VOLUME_DEPTH)
 #define LPV_PADDED_COUNT (PROBE_VOLUME_WIDTH * PROBE_VOLUME_HEIGHT * PROBE_VOLUME_DEPTH_PADDED)
 /** @} */
-
 
 
 
@@ -281,6 +298,15 @@ static const char * FULLSCREEN_OPTION_NAMES[] =
     "WINDOWED"
 };
 
+/**
+ * @brief MSAA options handled in render_main_menu(). 
+ */
+typedef enum MSAASampleOptions
+{
+
+    MSAA_2, MSAA_4, MSAA_8, MSAA_16, MSAA_SAMPLE_OPTIONS_MAX
+
+} MSAASampleOptions;
 
 
 typedef struct PhysicsComponent PhysicsComponent;
@@ -305,17 +331,20 @@ typedef struct ReflectionProbe
 
 /**
  * @brief Type for one FFT partiton for overlap-add.
+ * @ingroup aprobe_group
  */
 typedef fftwf_complex * PartitionTableChannel[NUM_PARTITIONS];
 
 /**
  * @brief Type for two channels (stereo) for overlap-add.
+ * @ingroup aprobe_group
  */
 typedef PartitionTableChannel PartitionTable[2];
 
 /**
  * @brief Weights used for interpolating between audio probes.
  * @see interpolate_nearest_aprobes()
+ * @ingroup aprobe_group
  */
 typedef struct AudioProbeWeights
 {
@@ -331,6 +360,7 @@ typedef struct AudioProbeWeights
  * @brief AudioPortal%s used for determining paths to transmit sound when emitter and listener are occluded.
  * @remark Located in Globals.audio_portals
  * @see ::GLOBALS
+ * @ingroup audio_group
  */
 typedef struct AudioPortal
 {
@@ -347,6 +377,7 @@ typedef struct AudioPortal
 /**
  * @brief The data for the thread that prepares IRs by rotating then convolving them with an HRTF before it presents it to the audio thread.
  * @see audio_ir.c
+ * @ingroup aprobe_group
  */
 typedef struct HRTFThreadData
 {
@@ -375,6 +406,7 @@ typedef struct HRTFThreadData
  * @brief Scratch buffers and dimensions used for audio convolution FFTs.
  * @see init_audio_scratch_buffers()
  * @see allocate_audio_scratch_hrtf()
+ * @ingroup aprobe_group
  */
 typedef struct AudioScratchBuffers
 {
@@ -413,6 +445,7 @@ typedef struct AudioScratchBuffers
  * @brief The IR ::CONVOLVER_NODE used to process frames in the audio thread.
  * @see init_audio_scratch_buffers()
  * @see convolver_node_process_pcm_frames()
+ * @ingroup aprobe_group
  */
 typedef struct ConvolverNode
 {
@@ -460,6 +493,7 @@ typedef struct ConvolverNode
  * @brief An AudioEmitter that plays audio possibily from a certain position or at a certain time.
  * @see audio/audio.c
  * @see ::AUDIO_EMITTERS
+ * @ingroup audio_group
  */
 typedef struct AudioEmitter
 {
@@ -1322,6 +1356,7 @@ typedef struct {
 /**
  * @brief Baked IR samples loaded in from binary into APV%s from ProbeVolume%s.
  * @see bake_audio_probe_volume()
+ * @ingroup aprobe_group
  */
 typedef struct AudioProbe
 {
@@ -1337,6 +1372,7 @@ typedef struct AudioProbe
 /**
  * @brief Simply stores the positions for audio probes during the bake.
  * @see bake_audio_probe_volume()
+ * @ingroup aprobe_group
  */
 typedef struct AudioProbeGPU
 {
@@ -1347,6 +1383,7 @@ typedef struct AudioProbeGPU
 /**
  * @brief Each ray's samples when baking AudioProbe%s, padded for GPU.
  * @see audio/audio_probe_bake.comp
+ * @ingroup aprobe_group
  */
 typedef struct AudioSampleGPU
 {
@@ -1466,8 +1503,13 @@ typedef struct LightGPU
     
 } LightGPU;
 
-#define MAX_TEX_LABELS 600
-#define LABEL_LEN 256
+#define MAX_TEX_LABELS 600 /**<The maximum amount of labels for a ComboLabel.*/
+#define LABEL_LEN 256 /**<The maximum label length of labels in a ComboLabel.*/
+
+/**
+ * @brief The structure used for **some** dropdown abstractions in the Editor UI. 
+ * @see editor/editor.c
+ */
 typedef struct ComboLabel {
 
     char buffer[MAX_TEX_LABELS][LABEL_LEN];
@@ -1478,6 +1520,7 @@ typedef struct ComboLabel {
     int item_count;
 
 } ComboLabel;
+
 /**
  * @brief Alpha mode to determine Material blending. 
  */
@@ -2242,6 +2285,7 @@ typedef struct State
  * @brief Entity structure that holds components and references to the data it owns.
  * @see ::ENTITIES
  * @see Filter
+ * @ingroup audio_group
  */
 struct Entity
 {
@@ -2803,6 +2847,9 @@ typedef struct Asset
     
 } Asset;
 
+/**
+ * @brief Simply the size we use to allocate the ::INSTANCE_VBO (unused).
+ */
 typedef struct InstanceData
 {
 
@@ -2813,249 +2860,310 @@ typedef struct InstanceData
     int skin_offset;
     
 } InstanceData;
+
 /**
- * @brief .
- * @see AssetInstance
- * @see Globals.assets
+ * @brief The structure used to sort unique submeshes by materials, and shaders in the main render pass.
+ * @see create_and_sort_draw_commands()
+ * @see upload_instance_data()
+ * @todo Possibly sort 128 keys instead of 64
  */
 typedef struct DrawCommand
 {
 
-    uint64_t sort_key;
-    uint8_t gbuffer_shader;
-    uint8_t fwd_shader;
-    // figure out how to sort 128
-    uint8_t material;
-    uint8_t opaque;
-    uint16_t mesh_id;
-    uint8_t static_mesh;
-    uint32_t start_index;
-    uint32_t index_count;
-    uint32_t lm_offset;
-    uint16_t point_light_offset;
-    uint16_t point_light_count;
-    uint16_t directional_light_offset;
-    uint16_t directional_light_count;
-    uint16_t spot_light_offset;
-    uint16_t spot_light_count;
-    uint32_t mn_id;
-    uint32_t sm_id;
-    mat4 matrix;
-    uint16_t skin_offset;
-    uint32_t array_offset;
-    uint32_t element_offset;
+    uint8_t gbuffer_shader;            /**<The shader for the ::DEPTH_PRE_PASS_SHADER.*/
+    uint8_t fwd_shader;                /**<The shader in ::DYNAMIC_SHADER.*/
+    uint8_t material;                  /**<The Material ID into Globals.materials.*/
+    uint8_t opaque;                    /**<How opaque a Material is.*/
+    uint8_t static_mesh;               /**<If it is a static mesh.*/
+    uint16_t mesh_id;                  /**<The Mesh.*/
+    uint16_t skin_offset;              /**<The offset into ::JOINT_SSBO.*/
+
+    /**
+     * @name Light Offsets
+     * @brief The offsets and counts into the Light arrays based on which are effecting this MeshNode.
+     * @{
+     */
+    uint16_t point_light_offset;       
+    uint16_t point_light_count;        
+    uint16_t directional_light_offset; 
+    uint16_t directional_light_count;  
+    uint16_t spot_light_offset;        
+    uint16_t spot_light_count;         
+    /** @} */
+
+    uint32_t start_index;              /**<Where the indices / vertices start for this SubMesh in ::MAIN_VBO.*/
+    uint32_t index_count;              /**<How many indices in this SubMesh.*/
+    uint32_t lm_offset;                /**<Lightmap offset into ::LIGHTMAP_DATA / ::LIGHTMAP_SSBO.*/
+    uint32_t mn_id;                    /**<The MeshNode.*/
+    uint32_t sm_id;                    /**<The SubMesh.*/
+    uint32_t array_offset;             /**<The offset into ::INDIRECT_ARRAYS_COMMAND_BUFFER.*/
+    uint32_t element_offset;           /**<The offset into ::INDIRECT_ELEMENTS_COMMAND_BUFFER.*/
+    uint64_t sort_key;                 /**<The key that is sorted in create_and_sort_draw_commands().*/
+    mat4 matrix;                       /**<The transformation matrix of the MeshNode.*/
     
 } DrawCommand;
 
 
 
 
+/**
+ * @name EPAWorkspace Maximum Sizes
+ * @brief Sizes of statically sized arrays for EPA.
+ * @see physics/GJK.c
+ * @{
+ */
 #define MAX_EPA_VERTICES 1024
 #define MAX_EPA_FACES 1024
 #define MAX_EPA_INDICES 1024
 #define MAX_EPA_HORIZON_EDGES 1024
 #define MAX_EPA_HORIZON_COUNTS 1024
 #define MAX_EPA_VISIBLE_FACES_INDICES 1024
+/** @} */
 
+/**
+ * @brief A workspace used for EPA during collision detection. 
+ * @see epa()
+ * @see physics/GJK.c
+ * @see CollisionPoints
+ */
 typedef struct EPAWorkspace
 {
 
-    SupportVertex vertices[MAX_EPA_VERTICES];
-    size_t vertices_count;
-    MeshFace faces[MAX_EPA_FACES];
-    size_t faces_count;
-    int indices[MAX_EPA_INDICES];
-    size_t indices_count;
-    HorizonEdge horizon_edges[MAX_EPA_HORIZON_EDGES];
-    size_t horizon_edges_count;
-    int horizon_counts[MAX_EPA_HORIZON_COUNTS];
-    size_t horizon_counts_count;
-    int visible_faces_indices[MAX_EPA_VISIBLE_FACES_INDICES];
-    size_t visible_faces_count;
+    SupportVertex vertices[MAX_EPA_VERTICES];                 /**<The vertices of the current polyhedron.*/
+    size_t vertices_count;                                    /**<The amount of vertices.*/
+    MeshFace faces[MAX_EPA_FACES];                            /**<The faces of the current polyhedron.*/
+    size_t faces_count;                                       /**<The amount of faces.*/
+    int indices[MAX_EPA_INDICES];                             /**<Indices into EPAWorkspace.faces that describe which faces are still used (when faces are removed they are simply deleted from this array).*/
+    size_t indices_count;                                     /**<The amount of current faces.*/
+    HorizonEdge horizon_edges[MAX_EPA_HORIZON_EDGES];         /**<The amount of unique edges that are not shared between visible faces.*/
+    size_t horizon_edges_count;                               /**<The amount of horizon edges.*/
+    int horizon_counts[MAX_EPA_HORIZON_COUNTS];               /**<The amount of times each horizon edge appears (if it only appears once then it is evaluated).*/
+    size_t horizon_counts_count;                              /**<The amount of horizon counts.*/
+    int visible_faces_indices[MAX_EPA_VISIBLE_FACES_INDICES]; /**<The faces that are visibile from the newest SupportVertex.*/
+    size_t visible_faces_count;                               /**<The amount of visible faces found.*/
     
 } EPAWorkspace;
 
-typedef struct OpenNode {
+/**
+ * @brief A node inside of the min_heap of an AStarWorkspace. 
+ * @see a_star_aportal()
+ * @see AStarWorkspace
+ */
+typedef struct OpenNode
+{
 
-    int i;
-    float g, f;
-    int parent;
+    int i;      /**<The index into the array of whatever is being traversed.*/
+    float g;    /**<The g score: current score of the path.*/
+    float f;    /**<The f score: score from neighbor to end.*/
+    int parent; /**<The index of the parent of this neighbor.*/
 
 } OpenNode;
 
 
-typedef struct ClosedNodeEntry{
-    int key;    
-    UT_hash_handle hh; 
-} ClosedNodeEntry;
+#define MAX_PORTALS 256 /**<The maximum amount of portals that are allocated to AStarWorkspace.path*/
 
-
-typedef struct CameFromEntry{
-
-    int key;   
-    int from;  
-    UT_hash_handle hh;
-
-} CameFromEntry;
-
-typedef struct GScoreEntry {
-    int key;
-    float g;
-    UT_hash_handle hh;
-} GScoreEntry;
-
-#define MAX_PORTALS 256
+/**
+ * @brief A running stack of nodes in a path that tracks where they came from so they can be retraced at the end. 
+ * @see a_star_aportal()
+ */
 typedef struct AStarStateStack
 {
 
-    float g;
-    float f;
-    int came_from;
-    int run_id;
+    float g; /**<The g score: current score of the path.*/
+    float f; /**<The f score: score from neighbor to end.*/
+    int came_from; /**<The index into the array of traversed items that this node came from.*/
+    int run_id; /**<Makes sure that no old stack items are used. A new run is started on each a_star call.*/
 
 } AStarStateStack;
 
+/**
+ * @brief The workspace for conducting a-star pathfinding/. 
+ * @see a_star_aportal()
+ * @todo Expand path size or make it reallocatable because the current limit is minimal.
+ */
 typedef struct AStarWorkspace
 {
 
-    AStarStateStack * stack;
-    int * path;
-    int path_count;
+    AStarStateStack * stack; /**<The stack that tracks where each node connects so that it can be backtracked.*/
+    int * path;              /**<The path indices that are returned.*/
+    int path_count;          /**<The final path count.*/
 
-    Vector min_heap; // open node
-    ClosedNodeEntry * closed_set;
-    CameFromEntry * came_from_table;
-    GScoreEntry * g_score_table;
-
-    int current_run;
-
+    Vector min_heap;         /**<OpenNode - the heap of nodes that are pushed and popped until there are none left or it reaches the end.*/
+    int current_run;         /**<The current run indicates what AStarStateStack entries we can use.*/
     
 } AStarWorkspace;
 
+/**
+ * @brief The Player. 
+ * @details There can currently only be one Player, located in ::player.
+ * @see update_camera()
+ * @see process_input()
+ * @see update_audio_occlusion()
+ * @see audio_update()
+ */
 typedef struct Player
 {
 
-    float radius;
-    float height;
-    bool sprinting;
-    bool noclip;
-    Camera * cam;
-    PhysicsComponent * pc;
-    vec3 pos;
-    Skeleton skeleton;
-    Mesh mesh;
+    float radius;          /**<The radius of the Player body.*/
+    float height;          /**<The height of the Player body.*/
+    bool sprinting;        /**<Currently unused flag for sprinting.*/
+    bool noclip;           /**<Enables flying (but not collisions).*/
+    Camera * cam;          /**<Player Camera.*/
+    PhysicsComponent * pc; /**<PhysicsComponent in ::PHYSICS_COMPONENTS.*/
+    vec3 pos;              /**<Currently anchors the Skeleton.*/
+    Skeleton skeleton;     /**<Player Skeleton.*/
+    Mesh mesh;             /**<The Mesh for the ConvexHull used for collisions (an AABB).*/
     
 } Player;
 
 
-static const ivec3 DEFAULT_APV_RES = {6, 6, 6};
-static const ivec3 DEFAULT_LPV_RES = {PROBE_VOLUME_WIDTH, PROBE_VOLUME_HEIGHT, PROBE_VOLUME_DEPTH};
+static const ivec3 DEFAULT_APV_RES = {6, 6, 6}; /**<When APV%s are spawned, they use this.*/
+static const ivec3 DEFAULT_LPV_RES = {PROBE_VOLUME_WIDTH, PROBE_VOLUME_HEIGHT, PROBE_VOLUME_DEPTH}; /**<What LPV%s should always be at to match texture dimensions.*/
 
+
+/**
+ * @brief The ProbeVolume%s for APV%s and LPV%s, controlled by OBB%s. 
+ * @see load_audio_pv()
+ * @see APV
+ * @see LPV
+ * @ingroup aprobe_group
+ */
 typedef struct ProbeVolume
 {
 
-    size_t byte_offset;
-    size_t size;
-    OBB obb;
-    ivec3 resolution;
-    char path[256];
+    size_t byte_offset; /**<The byte offset into the binary file storing this volume.*/
+    size_t size;        /**<The byte size of this volume.*/
+    OBB obb;            /**<The OBB that defines the size.*/
+    ivec3 resolution;   /**<The resolution in X, Y, Z.*/
     
 } ProbeVolume;
 
+/**
+ * @brief A ProbeVolume for AudioProbe%s. 
+ * @see load_audio_pv()
+ * @see AudioProbe
+ * @ingroup aprobe_group
+ */
 typedef struct APV
 {
     
-    int pv_id;
-    AudioProbe * audio_probes;
+    int pv_id;                 /**<Which ProbeVolume in SceneData.audio_probe_volumes.*/
+    AudioProbe * audio_probes; /**<The probes in the volume, loaded in from binary.*/
 
 } APV;
 
-typedef struct LProbe
-{
 
-    float val[SH_MAX];
-    
-} LProbe;
-
-
+/**
+ * @brief A ProbeVolume for indirect lighting probes. 
+ * @see load_lighting_pv()
+ * @see bake_lighting_probe_volume()
+ */
 typedef struct LPV
 {
     
-    int pv_id;
+    int pv_id;       /**<The ProbeVolume in SceneData.lighting_probe_volume.*/
+
+    /**
+     * @brief The raw SH data. 
+     * @details P = ::LPV_PADDED_COUNT, 3 = [R, G, B], SH = ::SH_MAX
+     * \f$(P * 3 * SH)\f$.
+     */
     float * lprobes;
 
 } LPV;
 
+/**
+ * @brief The BVH for Light%s. 
+ * @see init_light_bvh()
+ * @see bake_lightmap()
+ */
 typedef struct LightBVH
 {
 
-    Vector nodes;
-    size_t * indices;
-    size_t indices_count;
-    Vector lights;
+    Vector nodes;         /**<Each node of the BVH.*/
+    size_t * indices;     /**<The indices sorted when initialized.*/
+    size_t indices_count; /**<The amount of indices on init (some lights are omitted).*/
+    Vector lights;        /**<The Light%s that were created (emissive triangles become ::AREA_LIGHT%S).*/
     
 } LightBVH;
 
+/**
+ * @brief The data for the current scene. Stored in Globals. 
+ * @see init()
+ * @see init_globals()
+ * @see scene_load()
+ */
 typedef struct SceneData
 {
 
-    char name[256];
+    char name[256]; /**<Modifiable name of the scene.*/
+    AABB aabb;      /**<AABB over the entire scene.*/
 
-    AABB aabb;
-
+    /**
+     * @name BVH fields
+     * @brief The BVH over each MeshNode in the scene, updated each frame.
+     * @{
+     */
     Vector bvh_nodes;
-
-    Vector leaf_indices;
-
-    Vector reflection_probes;
-
-    Vector audio_probe_volumes;
-    Vector lighting_probe_volumes;
-
-    LightBVH light_bvh;
-
-    APV LOADED_AUDIO_PV[MAX_AUDIO_PROBE_VOLUMES];
-    bool LOADED_AUDIO_PV_FLAG[MAX_AUDIO_PROBE_VOLUMES];
-    LPV LOADED_LIGHTING_PV[LPV_SLOTS];
-    bool LOADED_LIGHTING_PV_FLAG[LPV_SLOTS];
-
-    char LPV_PATH[256];
-    FILE * LPV_FILE;
-
-    char APV_PATH[256];
-    FILE * APV_FILE;
-
     int bvh_indices_count;
     size_t * bvh_indices;
-    
+    /** @} */
 
-    LightmapData lightmap_data;
 
-    
+    Vector reflection_probes;      /**<ReflectionProbe%s in the scene.*/
+    Vector audio_probe_volumes;    /**<All of the AudioProbe% volumes, regardless of if they have been loaded yet.*/
+    Vector lighting_probe_volumes; /**<All of the lighting probe volumes, regardless of if they have been loaded yet.*/
+
+    LightBVH light_bvh; /**<The LightBVH, required for baking lighting.*/
+
+    /**
+     * @name Loaded LPV%s and APV%s.
+     * @brief The loaded ProbeVolume%s for both AudioProbe%s and lighting probes.
+     * @see load_lighting_pv().
+     * @see load_audio_pv().
+     * @{
+     */
+    APV LOADED_AUDIO_PV[MAX_AUDIO_PROBE_VOLUMES];       /**<Load slots for Audio ProbeVolume%s.*/
+    bool LOADED_AUDIO_PV_FLAG[MAX_AUDIO_PROBE_VOLUMES]; /**<Flags that indicate if the slot is loaded.*/
+    LPV LOADED_LIGHTING_PV[LPV_SLOTS];                  /**<Load slots for lighting ProbeVolume%s.*/
+    bool LOADED_LIGHTING_PV_FLAG[LPV_SLOTS];            /**<Flags that indicate if the slot is loaded.*/
+    char LPV_PATH[256];                                 /**<Path to binary file with lighting ProbeVolume%s.*/
+    FILE * LPV_FILE;                                    /**<FILE pointer to the opened binary file.*/
+    char APV_PATH[256];                                 /**<Path to binary file with Audio ProbeVolume%s.*/
+    FILE * APV_FILE;                                    /**<FILE pointer to the opened binary file.*/
+    /** @} */
+
+    LightmapData lightmap_data; /**<The loaded lightmap and lightmap configuration for the scene.*/
+   
     
 } SceneData;
 
 
+/**
+ * @brief Registry for folders that are used for dropdowns in the editor UI. 
+ * @see render_editor_menu()
+ * @see init_file_directory_registries()
+ * @see render_file_directory_dropdown()
+ */
 typedef struct FileDirectoryRegistry
 {
 
-    Vector names;
-    char suffix[256];
-    bool search_suffix;
-    char directory[256];
-    int current_selection;
-    nk_bool open;
+    Vector names;          /**<The name of each file in the directory.*/
+    char suffix[256];      /**<The suffix to append to the end of the file when searching.*/
+    bool search_suffix;    /**<If there is a suffix.*/
+    char directory[256];   /**<Path to directory for the file.*/
+    int current_selection; /**<The file that is currently selected (starts at 0).*/
+    nk_bool open;          /**<If the directory is currently open in a dropdown.*/
     
 } FileDirectoryRegistry;
 
-typedef enum MSAASampleOptions
-{
-
-    MSAA_2, MSAA_4, MSAA_8, MSAA_16, MSAA_SAMPLE_OPTIONS_MAX
-
-} MSAASampleOptions;
 
 
+/**
+ * @defgroup Editor Menu NKSlider trackers
+ * @brief All of these track slider states in the editor UI so that Undo%s with current values can be pushed when sliders start.
+ * @{
+ */
 typedef struct MainEditorMenu
 {
 
@@ -3235,93 +3343,86 @@ typedef struct TextBoxEditorMenu
     
     
 } TextBoxEditorMenu;
+/** @} */
 
 
 
-typedef struct PostprocessVersion
-{
-
-    bool m_blur;
-    bool dof;
-    bool bloom;
-    
-} PostprocessVersion;
-
-
+/**
+ * @brief Global settings and structures for each system in the engine. 
+ * @see SceneData
+ * @see init_globals()
+ * @see scene_load()
+ * @todo rename noclip
+ * @todo change world min and size
+ * @todo remove probe spacing - should no longer be needed, use resolution
+ */
 typedef struct Globals
 {
     
-    Vector meshes;
-    Vector mesh_nodes;
-    Vector skins;
-    Vector assets;
-    Vector materials;
-    Vector images;
-    Vector lights;
-    Vector audio_portals;
-    uint32_t * mesh_light_indices;
-    bool lights_dirty;
-    int current_directional;
+    bool lights_dirty;             /**<If lights need to be reuploaded.*/
+    bool noclip;                   /**<If collision is enabled.*/
+    bool keyboard_locked;          /**<If the keyboard is unlocked to register text events in the editor UI.*/
+    int msaa_samples;              /**<How many samples our multisampled textures are using.*/
+    vec3 world_min;                /**<Unused but uploaded to main shader.*/
+    vec3 world_size;               /**<Unused but uploaded to main shader.*/
+    ivec3 probe_tex_size;          /**<The texture size for lighting probes.*/
+    float probe_spacing;           /**<The spacing between lighting probes.*/
 
-    SceneData scene_data;
+    /**
+     * @name Engine Structure Arrays.
+     * @brief Each main system that is in Vector%s is here.
+     * @{
+     */
+    Vector meshes;                 /**<Mesh%es.*/
+    Vector mesh_nodes;             /**<MeshNode%s.*/
+    Vector skins;                  /**<GLTFSkin%s.*/
+    Vector assets;                 /**<Asset%s.*/
+    Vector materials;              /**<Material%s.*/
+    Vector images;                 /**<Image%s.*/
+    Vector lights;                 /**<Light%s.*/
+    Vector audio_portals;          /**<AudioPortal%s.*/
+    Vector vertex_layouts;         /**<VertexLayout%s.*/
+    AudioProbe * audio_probes;     /**<A scratch buffer used when baking AudioProbe%s.*/
+    /** @} */
 
-    Vector vertex_layouts;
-    
-    bool noclip;
+    uint32_t * mesh_light_indices; /**<Buffer used when calling determine_light_visibility_per_mesh.*/
+    SceneData scene_data;          /**<SceneData that is more-so scene specific.*/
 
-    vec3 world_min;
-    vec3 world_size;
-    ivec3 probe_tex_size;
-    float probe_spacing;
-
-    AudioProbe * audio_probes;
-
-    vec3 aprobe_start;
-    
-    float aprobe_spacing;
-    ivec3 aprobe_size;
-
-    int WORLD_WIDTH;
-    int WORLD_HEIGHT;
-    int WORLD_DEPTH;
-    
-    bool keyboard_locked;
-    
-    int msaa_samples;
-
-    
 } Globals;
 
+/**
+ * @brief OpenGL shader Uniforms. 
+ * @see core/shaders.c
+ */
 typedef struct Uniform
 {
     GLuint location;
     char name[256];
 } Uniform;
 
-typedef struct ComputeShaderProgram
-{
-    char path[256];
-    GLuint program;
-
-    Uniform uniforms[32];
-    
-    
-} ComputeShaderProgram;
-
+/**
+ * @brief OpenGL ShaderProgram%s: vertex, fragment, geometry, and compute. 
+ * @see core/shaders.c
+ * @todo Expand uniform count or make it dynamic?
+ */
 typedef struct ShaderProgram
 {
 
-    GLuint program;
-    uint32_t perm;
-    char name[256];
-    char vert_path[256];
-    char geom_path[256];
-    char frag_path[256];
+    GLuint program;       /**<Program handle.*/
+    uint32_t perm;        /**<Which permutation of a shader branch this is.*/
+    char name[256];       /**<Name of the shader.*/
+    char vert_path[256];  /**<Path to vertex shader (or compute shader).*/
+    char geom_path[256];  /**<Path to geometry shader.*/
+    char frag_path[256];  /**<Path to fragment shader.*/
 
-    Uniform uniforms[32];
+    Uniform uniforms[32]; /**<Uniform%s for shader data.*/
     
 } ShaderProgram;
 
+/**
+ * @brief An unused abstraction for VertexLayout%s. 
+ * @note In an older engine, there was the capability to design your own layouts and render passes. This functionality is not necessary in this engine, and so there is only one VertexLayout currently.
+ */
 typedef struct VertexLayout {
     
     char name[256];
@@ -3342,26 +3443,9 @@ typedef struct VertexLayout {
     
 } VertexLayout;
 
-
-extern Globals GLOBALS;
-
-
-extern GLsync fence;
-
-extern int VCNT;
-extern int ICNT;
-
-
-extern Camera cam;
-extern Camera LIGHT_CAM[MAX_DIRECTIONAL_LIGHTS];
+extern Globals GLOBALS; /**<Engine Globals*/
+extern Camera cam; /**<The Camera attached to the Player.*/
+extern Camera LIGHT_CAM[MAX_DIRECTIONAL_LIGHTS]; /**<::DIRECTIONAL_LIGHT Camera%s for shadowmaps*/
     
-extern GLuint64 density_time;
-extern GLuint64 mc_time;
-extern GLuint d_q;
-extern GLuint mc_q;
-extern bool within_planet_atmosphere;
-
-
-
 
 #endif 

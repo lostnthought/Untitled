@@ -571,8 +571,6 @@ void scene_save(const char * name)
     if (GLOBALS.scene_data.light_bvh.lights.buffer) fwrite(GLOBALS.scene_data.light_bvh.lights.buffer, sizeof(Light), GLOBALS.scene_data.light_bvh.lights.count, f);
     if (GLOBALS.scene_data.light_bvh.indices) fwrite(GLOBALS.scene_data.light_bvh.indices, sizeof(size_t), GLOBALS.scene_data.light_bvh.lights.count, f);
 
-    fwrite(&GLOBALS.scene_data.leaf_indices.count, sizeof(size_t), 1, f);
-    if (GLOBALS.scene_data.leaf_indices.buffer) fwrite(GLOBALS.scene_data.leaf_indices.buffer, sizeof(size_t), GLOBALS.scene_data.leaf_indices.count, f);
     fwrite(&GLOBALS.scene_data.bvh_indices_count, sizeof(int), 1, f);
     if (GLOBALS.scene_data.bvh_indices) fwrite(GLOBALS.scene_data.bvh_indices, sizeof(size_t), GLOBALS.scene_data.bvh_indices_count, f);
 
@@ -630,9 +628,6 @@ void scene_save(const char * name)
     fwrite(&GLOBALS.world_size, sizeof(vec3), 1, f);
     fwrite(&GLOBALS.probe_tex_size, sizeof(ivec3), 1, f);
     fwrite(&GLOBALS.probe_spacing, sizeof(float), 1, f);
-    fwrite(&GLOBALS.WORLD_WIDTH, sizeof(int), 1, f);
-    fwrite(&GLOBALS.WORLD_HEIGHT, sizeof(int), 1, f);
-    fwrite(&GLOBALS.WORLD_DEPTH, sizeof(int), 1, f);
     fwrite(&GLOBALS.noclip, sizeof(bool), 1, f);
     // fwrite(&GLOBALS.keyboard_locked, sizeof(bool), 1, f);
 
@@ -1350,7 +1345,6 @@ void scene_load(const char * name)
         GLOBALS.scene_data.light_bvh.indices = malloc(sizeof(size_t) * GLOBALS.scene_data.light_bvh.lights.count);
         fread(GLOBALS.scene_data.light_bvh.indices, sizeof(size_t), GLOBALS.scene_data.light_bvh.lights.count, f);
     }
-    read_vector(&GLOBALS.scene_data.leaf_indices, sizeof(size_t), f);
     // fread(&GLOBALS.scene_data.leaf_indices.count, sizeof(size_t), 1, f);
     // if (GLOBALS.scene_data.leaf_indices.count > 0)
     // {
@@ -1474,9 +1468,6 @@ void scene_load(const char * name)
     fread(&GLOBALS.world_size, sizeof(vec3), 1, f);
     fread(&GLOBALS.probe_tex_size, sizeof(ivec3), 1, f);
     fread(&GLOBALS.probe_spacing, sizeof(float), 1, f);
-    fread(&GLOBALS.WORLD_WIDTH, sizeof(int), 1, f);
-    fread(&GLOBALS.WORLD_HEIGHT, sizeof(int), 1, f);
-    fread(&GLOBALS.WORLD_DEPTH, sizeof(int), 1, f);
     fread(&GLOBALS.noclip, sizeof(bool), 1, f);
     // fread(&GLOBALS.keyboard_locked, sizeof(bool), 1, f);
 
