@@ -1,0 +1,51 @@
+/** @mainpage Untitled Documentation
+ *
+ * <strong>Table of Contents</strong>
+ * <small>
+ * - @ref intro_sec
+ * - @ref features_sec
+ * - @ref audio_ss
+ * - @ref physics_ss
+ * - @ref collision_ss
+ * - @ref lighting_ss
+ * - @ref ui_ss
+ * - @ref skeleton_ss
+ * - @ref editor_ss
+ * - @ref toc_sec
+ * </small>
+ * @section intro_sec Introduction
+ * <span style="font-size: 15px;">
+ * This is the documentation for an Untitled game engine.<br>
+ * This is an extensive engine featuring many systems, and therefore it makes sense that we should outline an overview of how it all connects.<br>
+ * Untitled has a focus on optimized gpu-driven forward rendering. However, the things that make it stand out are likely not its renderer.<br>
+ * Some technology in Untitled has been developed from scratch in a unique way: the path traced AudioProbe%s, the @ref src/physics system, and the Skeleton simulations.<br>
+ * Untitled tries to abstract very little when it is not necessary. Most systems are low level, fast, and are going to stay that way.<br>
+ * The intention was never to make a "commercial" engine, but one that reflects my peculiar sensibilities and interests as a programmer and artist.<br>
+ * For further information on this project: [*Youtube (Devlogs and Streams)*](https://www.youtube.com/@dustmite-c) | [*Github*](https://github.com/lostnthought/Untitled) | [*Website (Blogs)*](https://lostnthought.github.io/lostnthought/index.html)<br>
+ * </span>
+ *
+ * @section features_sec Features and Systems
+ * @subsection audio_ss Audio ([*Article*](https://lostnthought.github.io/lostnthought/articles/path-traced-audio-probes.html))
+ * AudioProbe%s are baked offline into OBB ProbeVolume%s. They are baked using a path tracer. These are saved to binary and streamed into slots based on player position, APV%s. These store an IR, which is composed of early reflections and late reverb. The late reverb is estimated by computing an RT60 via Schroeder integration. During runtime, a background thread interpolates nearby probes and then rotates and convolves their IR samples with an HRTF of a human head. Then, that is partitioned and sent to the audio thread which convolves it with the current audio stream. This simulates real space.<br>
+ * @subsection physics_ss Physics
+ * PhysicsComponent%s are assigned to \link Entity Entities\endlink, initialized with dimensions and parameters, and then processed per frame. Depending on center of mass, mu, restitution, and mass, they behave differently. Each frame, these components are updated with gravity and their velocities are calculated and a position is proposed. That position is run through acceleration structures (BVH) to find possible collisions. The CollisionType indicates if triangles (MeshFace%s), ConvexHull%s, or a capsule is used for detection. If possible collisions are found, Manifold%s are created that describe the penetration using CollisionPoint%s. Then, valid Manifold%s are iterated through and impulses are resolved between the two bodies. Then, position and velocity are integrated, and unnecessary CollisionPoint%s are removed if they separate.<br>
+ * @subsection collision_ss Collision
+ * When a Mesh is loaded into the engine, it is either a specified static or dynamic Mesh. If it is static, prepared for possible lightmap baking. Therefore, it generates a triangle BVH and adjacency map over each triangle inside of it. If it is dynamic, incremental hull is run to create ConvexHull%s out of it. Then, coplanar faces are combined to create HullFace%s that are used during Manifold clipping.
+ * @subsection lighting_ss Lighting
+ * Real-time lighting in Untitled is standard clustered forward shading with Light%s that behave differently based on LightType. Baked lighting in Untitled is handled through the path-traced UV lightmap, path-traced ProbeVolume%s, and ReflectionProbe%s. Before baking lighting, a LightBVH must be built over all Light%s and emissive triangles in a scene (which become ::AREA_LIGHT%S). This is used for importance sampling during the bake, so we know what lights to sample from which position. To bake a UV lightmap, we must generate an atlas of texels that we will render to, which means we also need to UV unwrap each static face that will appear on that atlas. Once we do that, we rasterize IDs and positions to a texture based on those dimensions. Then, we run compute passes over each texel and path trace through the scene over and over again until we process a certain amount of samples. Then, the lightmap is dilated and denoised. To bake a ProbeVolume, the OBB is set up to a certain position and each individual probe within it (set to a standard ::LPV_COUNT) is baked similarly to a texel, but with a uniform ray distribution. ReflectionProbe%s are baked in a cubemap and uses the same rendering loop as the standard renderer, defined as render_to_cubemap_face().
+ * @subsection ui_ss UI
+ * While Untitled uses Nuklear for the majority of its Editor UI, it has the capability to create its own UIElement%s and render its own TextBox%es. Both are initialized inside of UIMenu%s, which also store UIContainer%s that are tied to UIElement%s and can hold references to other UIElement%s and TextBox%es. These links are used for scrolling and can mask when UIElement%s or TextBox%es scroll out of a UIContainer. On interaction, uninteraction, hover, or unhover, UIElement%s can trigger functions that are held in a registry. To render the UIElement%s and TextBox%es, they are pushed into SSBOs and instanced. Currently, UIElement%s are SDF only and TextBox%es are MSDF.
+ * @subsection skeleton_ss Skeletons
+ * In Untitled, the player has a Skeleton, but other Skeleton%s can be created as well. A Skeleton has two LegIK%s, a pelvis Spring, and a neck Spring. Each frame, leg positions are updated based on where the leg target is intended based on input direction and world geometry. Then, the pelvis Spring is solved based on the leg positions. The neck Spring is solved based on the new position of that pelvis Spring. Then, the neck position is used for the camera. This simulates real movement and feels human-like.
+ * @subsection editor_ss Editor ([*Article*](https://lostnthought.github.io/lostnthought/articles/the-undo-button.html))
+ * The editor UI in Untitled was created to modify almost every parameter and structure. Its most notable feature is its Undo system that makes nearly every action undo-able and redo-able. This uses byte offsets and byte buffers that are copied into structures specified by IDs that are pushed with the Undo, and exists inside of a doubly linked list with a modifiable memory cap.
+ *
+ * @section toc_sec Table of Contents
+ * Most of the folders should be self-explanatory. However, specific important files should be noted.
+ * - **core/engine_types.h**: This file holds nearly every type, struct, and enum in the engine, and many compile defines that are vitally important. A good starting point to understanding the systems, as it links everywhere.
+ * - **@ref src/utilities**: This folder (except for the engine_utilities file) is self-contained, meaning that it is actually not specific to this engine. That means it can be used separately in other applications as well, and that's exactly what I have done.
+ * - **@ref src/ui**: The UI system in Untitled is also actually self-contained. All relevant engine functions are found elsewhere for incapsulation purposes.
+ * - **dynamic.vert + dynamic.frag**: These are the main ubershaders for the forward pass. They are named dynamic since they were originally only intended for dynamic Mesh%es.
+ *
+ *
+ */

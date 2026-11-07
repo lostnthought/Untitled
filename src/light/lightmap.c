@@ -335,8 +335,8 @@ void assign_uvs(UVIsland * uvi, LightmapAtlas *atlas) {
             float pixel_u = inner_u + norm_u * (inner_w > 0 ? (inner_w - 1) : 0.0f);
             float pixel_v = inner_v + norm_v * (inner_h > 0 ? (inner_h - 1) : 0.0f);
 
-            uvi->uvs[i].uvs[j].x = (pixel_u + 0.5f) / (float)atlas->width;
-            uvi->uvs[i].uvs[j].y = (pixel_v + 0.5f) / (float)atlas->height;
+            uvi->uvs[i][j].x = (pixel_u + 0.5f) / (float)atlas->width;
+            uvi->uvs[i][j].y = (pixel_v + 0.5f) / (float)atlas->height;
             index++;
         }
     }
@@ -1069,7 +1069,7 @@ void bake_lightmap(LightmapData * ld)
                 lmv[count].pos = pts[mf->indices[p]].pos;
                 lmv[count].normal = pts[mf->indices[p]].normal;
                 lmv[count].uv = pts[mf->indices[p]].uv;
-                lmv[count].lm_uv = uvi->uvs[mn->uv_map[idx].uv_idx].uvs[p];
+                lmv[count].lm_uv = uvi->uvs[mn->uv_map[idx].uv_idx][p];
                 lmv[count].material_id = mf->material_id;
                 lmv[count].tri_id = j;
                 count++;
@@ -1574,8 +1574,6 @@ void bake_lighting_probe_volume(ProbeVolume * pv)
 
     glFinish();
 
-
-    
     glUseProgram(PROBE_UNPACK_SHADER);
     glUniform3i(glGetUniformLocation(PROBE_UNPACK_SHADER, "uProbeSize"), PROBE_VOLUME_WIDTH, PROBE_VOLUME_HEIGHT, PROBE_VOLUME_DEPTH);
     glUniform1i(glGetUniformLocation(PROBE_UNPACK_SHADER, "uIterations"), PROBE_ITERATIONS);

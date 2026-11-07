@@ -1608,7 +1608,6 @@ void update_physics_components()
         pc->old_vel = pc->vel;
         pc->old_angular = pc->angular_velocity;
         PC_apply_velocity(pc, dt);
-        pc->corrected_position = (vec3){0,0,0};
     }
     for (int i = 0; i < MAX_PHYSICS_COMPONENTS; i++)
     {
@@ -2057,7 +2056,6 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
             break;
         case COL_CAPSULE:
             print_aabb(&aabb);
-            pc->cd.data.capsule.height = aabb.max_z - aabb.min_z;
             pc->cd.data.capsule.a = (vec3){aabb.center.x,aabb.center.y,aabb.min_z};
             pc->cd.data.capsule.b = (vec3){aabb.center.x,aabb.center.y,aabb.max_z};
             // pc->cd.data.capsule.a = (vec3){aabb.center.x,aabb.center.y,-aabb.extents.z};

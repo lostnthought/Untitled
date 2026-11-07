@@ -102,7 +102,8 @@ size_t fill_buffer_with_mesh_tri(Mesh * mesh, MainVertex * verts, size_t offset)
                 MeshFace * tri = &tris[j];
                 TriangleAdjacency * tri_adj = mesh->tri_adjacency;
                 UVIsland * uvi = &islands[uv_map[j].uv_island];
-                LightmapUV * uv = &uvi->uvs[uv_map[j].uv_idx];
+                LightmapUV * uv = &(uvi->uvs[uv_map[j].uv_idx]);
+                
 
                 for (int p = 0; p < 3; p++)
                 {
@@ -116,7 +117,7 @@ size_t fill_buffer_with_mesh_tri(Mesh * mesh, MainVertex * verts, size_t offset)
                     if (islands)
                     {
                 
-                        LIGHTMAP_DATA.uvs[current_offset + j * 3 + p].uv = (vec4){uv->uvs[p].x, uv->uvs[p].y, 0, 0};
+                        LIGHTMAP_DATA.uvs[current_offset + j * 3 + p].uv = (vec4){(*uv[p]).x, (*uv[p]).y, 0, 0};
                     }
 
                     count++;
@@ -226,7 +227,7 @@ size_t fill_vertex_buffer_mesh(Mesh * mesh, MainVertex * verts, size_t offset, s
                         for (int p = 0; p < 3; p++)
                         {
 
-                            LIGHTMAP_DATA.uvs[current_lm_offset + idx * 3 + p + mesh_count * sm->index_count].uv = (vec4){uv->uvs[p].x, uv->uvs[p].y, 0, 0};
+                            LIGHTMAP_DATA.uvs[current_lm_offset + idx * 3 + p + mesh_count * sm->index_count].uv = (vec4){(*uv[p]).x, (*uv[p]).y, 0, 0};
                         }
 
                     }
@@ -816,7 +817,7 @@ void update_scene_nodes(){
         if (AI->free) continue;
         for (int n = 0; n < AI->node_count; n++){
             MeshNode * mn = &mns[AI->node_indices[n]];
-            if (mn->root) {
+            if (mn->parent == -1) {
                 mn->local_matrix = compose_trs_from_mesh_node(mn);
                 mn->global_matrix = mn->local_matrix;
                 for (int c = 0; c < mn->child_count; c++) {

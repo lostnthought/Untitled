@@ -288,7 +288,9 @@ typedef struct PhysicsComponent PhysicsComponent;
 
 /**
  * @brief ReflectionProb%es used for parallax corrected cubemaps.
- * @see ::RPROBE_CUBEMAP_ARRAY
+ * @remark Located in Globals.scene_data.reflection_probes
+ * @see ::GLOBALS
+ * @see ::RPROBE_CUBE_MAP_ARRAY
  * @see ::RPROBE_UBO
  */
 typedef struct ReflectionProbe
@@ -327,6 +329,8 @@ typedef struct AudioProbeWeights
 
 /**
  * @brief AudioPortal%s used for determining paths to transmit sound when emitter and listener are occluded.
+ * @remark Located in Globals.audio_portals
+ * @see ::GLOBALS
  */
 typedef struct AudioPortal
 {
@@ -581,6 +585,14 @@ typedef enum SelectionMode
 } SelectionMode;
 
 
+/**
+ * @brief The Editor menu names rendered in editor/editor.c.
+ * @see render_main_menu()
+ */
+typedef enum MenuNames
+{
+    MENU_MAIN, MENU_MN, MENU_MATERIAL, MENU_LIGHT, MENU_ENT, MENU_TEXT, MENU_UI, MENU_AUDIO, MENU_LPROBE, MENU_AINST, MENU_MAX
+} MenuNames;
 
 /**
  * @brief Editor settings and engine global variables that can be changed through the editor. Also houses flags and indices for the editor UI.
@@ -788,6 +800,7 @@ typedef struct DrawElementsIndirectCommand {
 
 /**
  * @brief The global visibility buffer that holds all indices to instances per frame after they are pushed during culling.
+ * @see ::GLOBAL_INSTANCE_SSBO
  * @see render/cull_draw_calls.comp
  */
 typedef struct GlobalInstanceGPU
@@ -798,6 +811,7 @@ typedef struct GlobalInstanceGPU
 
 /**
  * @brief MeshNode structure padded for GPU (::MESH_NODE_SSBO)
+ * @see ::MESH_NODE_SSBO
  * @see render/dynamic.vert
  */
 typedef struct MeshNodeDataGPU
@@ -827,6 +841,7 @@ typedef struct MeshNodeDataGPU
 
 /**
  * @brief MeshNode buffer structure for ::MESH_NODE_SSBO
+ * @see ::MESH_NODE_SSBO
  */
 typedef struct MeshNodeSSBO
 {
@@ -839,6 +854,7 @@ typedef struct MeshNodeSSBO
 
 /**
  * @brief TransformGPU buffer structure for ::INSTANCE_SSBO. Triple buffered and submitted into each frame for each mesh node.
+ * @see ::INSTANCE_SSBO
  */
 typedef struct TransformGPU
 {
@@ -894,6 +910,8 @@ typedef struct Trigger
 
 /**
  * @brief Points that track collision data such as direction, penetration depth, and more to generate Manifold%s and resolve impulses.
+ * @see Manifold
+ * @see ::MANIFOLDS
  * @see physics/physics.c
  */
 typedef struct CollisionPoints
@@ -1012,76 +1030,105 @@ typedef enum PerformanceQueryTypes
 } PerformanceQueryTypes;
 
 
-
+/**
+ * @brief Convex Hulls that are generated via incremental hull for non-static meshes. Used for collision.
+ * @see Mesh
+ * @see init_mesh()
+ */
 typedef struct ConvexHull
 {
 
-    Vector vertices;
-    Vector faces;
-    Vector hull_faces;
-    vec3 centroid;
-    AABB aabb;
+    Vector vertices; /**<Point%s that initially copy the Mesh vertices but then are deduplicated and modified in incremental_hull().*/
+    Vector faces; /**<MeshFace%s that initially copy the Mesh faces but then are modified in incremental_hull().*/
+    Vector hull_faces; /**<HullFace%s that are generated after incremental_hull() that combine contiguous triangles into singular faces. Used for manifold clipping.*/
+    vec3 centroid; /**<The center of the hull.*/
+    AABB aabb; /**<The bounding box of the hull.*/
 
 } ConvexHull;
 
+/**
+ * @brief Groups of contiguous triangles with the same plane that are combined via jarvis marching.
+ * @see compute_hull_faces()
+ * @see compute_mesh_hulls()
+ */
 typedef struct TriangleGroup {
-    vec3 normal;
-    vec3 ref_point;
-    Vector indices;
+
+    vec3 normal; /**<The group's normal.*/
+    vec3 ref_point; /**<A point on the plane.*/
+    Vector indices; /**<size_t indices of each MeshFace that indexes into ConvexHull.faces.*/
+
 } TriangleGroup;
 
 
+/**
+ * @brief Nodes for the acceleration structures of BVHs.
+ * @see Scene MeshNode BVH: Globals.scene_data.bvh_nodes
+ * @see Light BVH: Globals.scene_data.light_bvh.nodes
+ * @see Mesh MeshFace BVH: Mesh.nodes
+ * @see core/acceleration.c
+ */
 typedef struct BVHNode
 {
 
-    int left;
-    int right;
-    int parent;
-    int index;
-    int next;
+    /**
+     * @name Relations
+     * @brief Children, parents, and IDs for related nodes for traversal.
+     * @{
+     */
+    int left; /**<Left child. -1 if empty.*/
+    int right; /**<Right child. -1 if empty.*/
+    int parent; /**<Parent. -1 if empty.*/
+    int index; /**<The index of the node inside of the array.*/
+    int next; /**<The pointer to the next node (either right child or parent's right child) for recursion-less traversal. See: assign_next_nodes().*/
+    /** @} */
 
-    AABB aabb;
-
-    size_t first_index;
-    size_t count;
-
-    float flux;
-    float emissive_flux;
+    AABB aabb; /**<The bounding box of all of this node's children.*/
+    size_t first_index; /**<The first index into the bvh_indices array.*/
+    size_t count; /**<How many children are inside this node.*/
+    float flux; /**<The total light flux of this node. Used for Light BVH importance sampling.*/
+    float emissive_flux; /**<The only-emissive flux. Used for Light BVH importance sampling.*/
     
 } BVHNode;
 
 
-typedef struct TriangleAdjacency
-{
-
-    Vector adjacent_indices;
-    
-} TriangleAdjacency;
-
-
+/**
+ * @brief Main rendering vertex.
+ * @see ::MAIN_VBO
+ * @see render/dynamic.vert
+ */
 typedef struct MainVertex
 {
-    vec3 pos;
-    vec3 normal;
-    vec4 tangent;
-    ivec4 joint_indices;
-    vec4 weights;
-    vec2 uv;
+
+    vec3 pos; /**<The position.*/
+    vec3 normal; /**<The normal.*/
+    vec4 tangent; /**<The tangent for TBN construction. This is supplied by GLTF.*/
+    ivec4 joint_indices; /**<The indices for each joint matrix (skeletal animations).*/
+    vec4 weights; /**<The weights each joint is multiplied by.*/
+    vec2 uv; /**<The texture coordinates.*/
+
 } MainVertex;
 
+/**
+ * @brief The structure used when rasterizing lightmap data to a texture before baking.
+ * @see bake_lightmap()
+ */
 typedef struct LightmapVertex
 {
    
-    vec3 pos;
-    vec3 normal;
-    vec2 uv;
-    vec2 lm_uv;
-    int material_id;
-    int tri_id;
+    vec3 pos; /**<The position.*/
+    vec3 normal; /**<The normal.*/
+    vec2 uv; /**<The texture coordinates for the actual face's GLTexture.*/
+    vec2 lm_uv; /**<The texture coordinates for the LightmapAtlas.*/
+    int material_id; /**<The Material this belongs to.*/
+    int tri_id; /**<The ID of the MeshFace.*/
     
 } LightmapVertex;
 
 
+/**
+ * @brief The structure used for debug wireframes.
+ * @see ::WIREFRAME_VBO
+ */
 typedef struct DebugVertex
 {
     vec3 pos;
@@ -1089,23 +1136,27 @@ typedef struct DebugVertex
     
 } DebugVertex;
 
+/**
+ * @brief The structure used for rendering TextBox%es.
+ * @see bake_lightmap()
+ */
 typedef struct TextVertex
 {
-    vec2 pos;
-    vec2 uv;
-    vec2 center;
-    vec4 color;
-    vec4 fill;
-    uint32_t state;
-    uint32_t uID;
+
+    vec2 pos; /**<The position.*/
+    vec2 uv; /**<The Font atlas coordinates.*/
+    vec2 center; /**<The center of the TextBox before transform (should be 0,0 if justified center).*/
+    vec4 color; /**<The color of the text.*/
+    vec4 fill; /**<The fill color for the TextBox.*/
+    uint32_t state; /**<The current UIState.*/
+    uint32_t uID; /**<The ID in the ::TEXT_BOX_SSBO.*/
+
 } TextVertex;
 
-typedef struct UIVertex
-{
-    vec2 pos;
-    uint32_t uID;
-} UIVertex;
-
+/**
+ * @brief The structure used for uploading matrices for directional Light%s used when rendering shadowmaps.
+ * @see ::LIGHT_CAM_UBO
+ */
 typedef struct ShadowmapUBO
 {
     mat4 proj[MAX_DIRECTIONAL_LIGHTS];
@@ -1114,107 +1165,127 @@ typedef struct ShadowmapUBO
 } ShadowmapUBO;
 
 
+/**
+ * @brief The structure uploaded to the GPU for providing render data for a Camera.
+ * @see ::CAM_UBO
+ */
 typedef struct CamData
 {
-    vec4 cam_pos;
-    vec4 cam_vel;
-    mat4 proj;
-    mat4 unjittered_proj;
-    mat4 view;
-    mat4 inv_proj;
-    mat4 unjittered_inv_proj;
-    mat4 inv_view;
+    vec4 cam_pos; /**<The position of the Camera (padded).*/
+    vec4 cam_vel; /**<The velocity of the Camera (padded).*/
+    mat4 proj; /**<The projection matrix.*/
+    mat4 unjittered_proj; /**<The projection matrix without TAA jittering.*/
+    mat4 view; /**<The view matrix.*/
+    mat4 inv_proj; /**<The inverse projection matrix.*/
+    mat4 unjittered_inv_proj; /**<The inverse projection matrix without TAA jittering.*/
+    mat4 inv_view; /**<The inverse view matrix.*/
 } CamData;
 
+/**
+ * @brief The structure uploaded to the GPU for providing the current resolution (fairly unused).
+ * @see ::RENDER_UBO
+ */
 typedef struct Render
 {
     ivec4 resolution;
 
 } RenderData;
 
+/**
+ * @brief The spring used for determining Skeleton positions and eventually neck trajectory.
+ * @see update_skeleton()
+ */
 typedef struct Spring
 {
-    float stiff;
-    float damp;
-    vec3 velocity;
-    vec3 pos;
-    vec3 target;
+    float stiff; /**<Stiffness.*/
+    float damp; /**<Dampening.*/
+    vec3 velocity; /**<Velocity of this spring.*/
+    vec3 pos; /**<Position of the spring.*/
+    vec3 target; /**<Where the spring wants to move to based on Skeleton positions, before velocity is integrated.*/
 
-    float stiff_rot;
-    float damp_rot;
-    vec3 rotation;
-    vec3 angular_vel;
-    vec3 target_rot;
+    float stiff_rot; /**<Stiffness for rotation.*/
+    float damp_rot; /**<Dampening for rotation.*/
+    vec3 rotation; /**<Current rotation of the spring.*/
+    vec3 angular_vel; /**<Current velocity for the rotation.*/
+    vec3 target_rot; /**<Where the spring is facing based on Skeleton positions.*/
     
 } Spring;
 
+/**
+ * @brief The controller for leg IKs for Skeleton%s.
+ * @see update_skeleton()
+ * @see move_foot()
+ * @see update_body_from_legs()
+ */
 typedef struct LegIK
 {
 
-    bool stepping;
-    bool stepping_off_ledge;
-    vec3 pos;
-    vec3 start_pos;
-    vec3 target_pos;
-    float duration;
-    float time;
+    bool stepping; /**<If the leg is currently stepping.*/
+    bool stepping_off_ledge; /**<If the leg is over air.*/
+    vec3 pos; /**<Position of the foot.*/
+    vec3 start_pos; /**<Starting position of the foot.*/
+    vec3 target_pos; /**<Target position for the current step.*/
+    float duration; /**<The duration of the entire step.*/
+    float time; /**<The current time to linearly interpolate between start and target pos.*/
     
 } LegIK;
 
+/**
+ * @brief The controller for leg IKs for Skeleton%s.
+ * @see update_skeleton()
+ * @see move_foot()
+ * @see update_body_from_legs()
+ */
 typedef struct Skeleton
 {
 
+    /**
+     * @name Starting Measurements
+     * @brief Measurements for where the skeleton is at rest.
+     * @{
+     */
+    float pelvis_height; /**<Height from ground to pelvis.*/
+    float hip_height; /**<Height from ground to hip.*/
+    float neck_height; /**<Height from ground to neck.*/
+    float pelvis_hip_diff; /**<Height from pelvis to hip.*/
+    float neck_pelvis_diff; /**<Height from pelvis to neck.*/
+    float upper_leg_length; /**<Upper leg length.*/
+    float lower_leg_length; /**<Lower leg length.*/
+    /** @} */
+    vec3 q_left; /**<The current knee position for left leg.*/
+    vec3 q_right; /**<The current knee position for right leg.*/
+    vec3 p_left; /**<The current left foot position.*/
+    vec3 p_right; /**<The current right foot position.*/
+    vec3 left_hip_pos; /**<The left hip pos, offset by ::left_leg_offset.*/
+    vec3 right_hip_pos; /**<The right hip pos, offset by ::right_leg_offset.*/
 
-    float pelvis_height;
-    float hip_height;
-    float neck_height;
-    float pelvis_hip_diff;
-    float neck_pelvis_diff;
-    float upper_leg_length;
-    float lower_leg_length;
-    vec3 q_left;
-    vec3 q_right;
-    vec3 p_left;
-    vec3 p_right;
-    vec3 left_hip_pos;
-    vec3 right_hip_pos;
-
-    Spring pelvis;
-    Spring neck;
-    LegIK left_leg;
-    LegIK right_leg;
+    Spring pelvis; /**<Pelvis Spring (target based on leg positions).*/
+    Spring neck; /**<Neck Spring (target based on pelvis).*/
+    LegIK left_leg; /**<Left leg.*/
+    LegIK right_leg; /**<Right leg.*/
     
 } Skeleton;
 
 
+/**
+ * @brief The camera structure for players and entities.
+ * @see ::cam
+ * @see Player
+ * @see update_camera()
+ */
 typedef struct Camera
 {
     vec3 forward, right, up, dir, target;
     float yaw, pitch, roll;
     CamData cam_data;
-    bool on_ground;
-    
+    bool on_ground; /**<If the camera is on the ground. Used in resolve_collisions().*/
 } Camera;
 
-typedef struct Probe
-{
-    vec4 rgb;
-    vec4 pos;
-    uint32_t active;
-    uint32_t pad0;
-    uint32_t pad1;
-    uint32_t pad2;
-    
-} Probe;
 
-#define MAX_PROBES 1024
-typedef struct ProbeData
-{
-
-    Probe probes[MAX_PROBES];
-    
-} ProbeData;
-
+/**
+ * @brief The structure for ReflectionProbe%s padded for the GPU. Stores AABB bounds
+ * @see ::RPROBE_SSBO
+ */
 typedef struct RProbe
 {
     vec3 center;
@@ -1226,7 +1297,11 @@ typedef struct RProbe
     
 } RProbe;
 
-#define MAX_RPROBES 256
+#define MAX_RPROBES 256 /**<The maximum amount of RProbe%s to send to the GPU at once.*/
+/**
+ * @brief The structure for RProbe%s sent to the GPU.
+ * @see ::RPROBE_SSBO
+ */
 typedef struct RProbeData
 {
 
@@ -1235,54 +1310,63 @@ typedef struct RProbeData
 } RProbeData;
 
 
-typedef struct IRFrame
-{
-
-    float SHCoefficients[SH_MAX][AUDIO_NUM_BANDS];
-    
-} IRFrame;
+/**
+ * @brief Biquad filter. Used for audio probe baking.
+ * @see process_biquad()
+ */
 typedef struct {
     float b0, b1, b2, a0, a1, a2;
     float x1, x2, y1, y2;
 } Biquad;
 
+/**
+ * @brief Baked IR samples loaded in from binary into APV%s from ProbeVolume%s.
+ * @see bake_audio_probe_volume()
+ */
 typedef struct AudioProbe
 {
 
-    size_t ir_length;
-    vec3 pos;
-    float rt60[AUDIO_NUM_BANDS];
-    float slope[AUDIO_NUM_BANDS];
-    float (* final_ir)[SH_MAX];
+    size_t ir_length; /**<The amount of IR samples for this probe.*/
+    vec3 pos; /**<The world position of this probe.*/
+    float rt60[AUDIO_NUM_BANDS]; /**<The RT60 from schroeder integration.*/
+    float slope[AUDIO_NUM_BANDS]; /**<The slope from EDC.*/
+    float (* final_ir)[SH_MAX]; /**<The baked IR samples by 9 SH.*/
     
 } AudioProbe;
 
-
+/**
+ * @brief Simply stores the positions for audio probes during the bake.
+ * @see bake_audio_probe_volume()
+ */
 typedef struct AudioProbeGPU
 {
     vec3 pos;
     uint32_t pad0;
 } AudioProbeGPU;
 
-
-
+/**
+ * @brief Each ray's samples when baking AudioProbe%s, padded for GPU.
+ * @see audio/audio_probe_bake.comp
+ */
 typedef struct AudioSampleGPU
 {
 
-    vec3 arrival_dir;
-    float time_of_flight;
-    vec3 pos;
-    uint32_t valid;
-    float energy[6];
+    vec3 arrival_dir; /**<The direction the ray was traveling to this position.*/  
+    float time_of_flight; /**<The time that it takes for the sample to reach this position in total dist + dist to probe.*/  
+    vec3 pos; /**<The hit position.*/  
+    uint32_t valid; /**<If it is occluded then it is not valid. Also, empty samples after the ray dies out are not valid.*/  
+    float energy[6]; /**<The energy per band.*/  
     uint32_t pad0;
     uint32_t pad1;
-    float abs_energy[6];
+    float abs_energy[6]; /**<The energy per band with only absorption and no scattering.*/  
     uint32_t pad4;
     uint32_t pad5;
 
 } AudioSampleGPU;
 
-
+/**
+ * @brief Enum for types of Light%s.
+ */
 typedef enum LightType : uint32_t
 {
     
@@ -1294,49 +1378,65 @@ typedef enum LightType : uint32_t
 
 } LightType;
 
+/**
+ * @brief The CPU side structure for Light%s.
+ * @see ::Globals.lights
+ * @see LightGPU
+ * @see upload_lights()
+ * @see build_light_bvh()
+ */
 typedef struct Light
 {
     
-    vec3 pos;
-    uint32_t entity_id;
+    vec3 pos; /**<Position of light.*/
+    uint32_t entity_id; /**<Entity ID into ::ENTITIES.*/
     
-    vec3 dir;
-    float cone_angle;
+    vec3 dir; /**<Direction for lights that are not #POINT_LIGHT%s.*/
+    float cone_angle; /**<Cone angle for #SPOT_LIGHT%s.*/
 
-    vec3 rgb;
-    float penumbra;
+    vec3 rgb; /**<Color of the light.*/
+    float penumbra; /**<Penumbra (opening) for #SPOT_LIGHT%s.*/
 
-    float intensity;
-    LightType light_type;
-    float inner_angle;
-    float outer_angle;
+    float intensity; /**<The intensity of the Light.*/
+    LightType light_type; /**<The type of Light.*/
+    float inner_angle; /**<Starting angle for #SPOT_LIGHT%s.*/
+    float outer_angle; /**<Outer angle for #SPOT_LIGHT%s.*/
 
-    float radius;
-    float threshold;
-    AABB area;
+    float radius; /**<The radius of the Light. Computed via copy_light_to_gpu_light()*/
+    float threshold; /**<The threshold (how far a light reaches).*/
+    AABB area; /**<The physical area of #AREA_LIGHT%s.*/
 
-    bool sm_dirty;
-    uint32_t layer;
+    bool sm_dirty; /**<If a point light needs a new shadowmap.*/
+    uint32_t layer; /**<Which layer a #DIRECTIONAL_LIGHT corresponds to in the ::SHADOW_MAP_FBO.*/
 
-    int mesh;
-    int tri;
+    int mesh; /**<The MeshNode this corresponds to. Used when building light BVH in build_light_bvh().*/
+    int tri; /**<The MeshFace this corresponds to. Used when building light BVH in build_light_bvh().*/
 
-    float lum;
-    float power;
+    float lum; /**<The luminosity for importance sampling.*/
+    float power; /**<The power for importance sampling.*/
 
-    vec3 A;
-    vec3 B;
-    vec3 C;
-    vec3 normal;
-    float surface_area;
+    /**
+     * @name Area Light Information
+     * @brief Vertex data for area lights used in importance sampling and when calling build_light_bvh(). In world space.
+     * @{
+     */
+    vec3 A; 
+    vec3 B; 
+    vec3 C; 
+    vec3 normal; 
+    float surface_area; /**<The surface area of the triangle.*/
+    /** @} */
     
 } Light;
 
-typedef enum MenuNames
-{
-    MENU_MAIN, MENU_MN, MENU_MATERIAL, MENU_LIGHT, MENU_ENT, MENU_TEXT, MENU_UI, MENU_AUDIO, MENU_LPROBE, MENU_AINST, MENU_MAX
-} MenuNames;
 
+/**
+ * @brief The GPU side structure for Light%s padded for GPU. 
+ * @see Globals.lights
+ * @see ::LIGHT_SSBO
+ * @see upload_lights()
+ * @see copy_light_to_gpu_light()
+ */
 typedef struct LightGPU
 {
     
@@ -1344,10 +1444,10 @@ typedef struct LightGPU
     uint32_t entity_id;
     
     vec3 dir;
-    float outer_cos;
+    float outer_cos; /**<Precomputed when uploading to the GPU for #SPOT_LIGHT%s.*/ 
 
     vec3 rgb;
-    float cos_diff;
+    float cos_diff; /**<Precomputed when uploading to the GPU for #SPOT_LIGHT%s.*/
 
     float intensity;
     LightType light_type;
@@ -1366,28 +1466,84 @@ typedef struct LightGPU
     
 } LightGPU;
 
-typedef struct EmissiveTriangle
+#define MAX_TEX_LABELS 600
+#define LABEL_LEN 256
+typedef struct ComboLabel {
+
+    char buffer[MAX_TEX_LABELS][LABEL_LEN];
+    const char *ptrs[MAX_TEX_LABELS];
+    int selected;
+  
+    int item_to_id[MAX_TEX_LABELS];
+    int item_count;
+
+} ComboLabel;
+/**
+ * @brief Alpha mode to determine Material blending. 
+ */
+typedef enum AlphaMode
+{
+    ALPHA_OPAQUE, ALPHA_MASK, ALPHA_BLEND
+} AlphaMode;
+
+/**
+ * @brief The Materials parsed in from scene files that determine rendering pipeline setup, uploads, and ordering. 
+ * @see MaterialGPU
+ */
+typedef struct Material
 {
 
-    vec3 A;
-    uint32_t pad0;
-    vec3 B;
-    uint32_t pad1;
-    vec3 C;
-    uint32_t pad2;
-    vec3 normal;
-    uint32_t pad3;
-    vec3 emissive;
-    uint32_t pad4;
-    float area;
-    float strength;
-    float cdf;
-    uint32_t pad5;
+    char name[256]; /**<The Material path.*/
+    int fwd_shader; /**<The corresponding forward rendering shader branch in ::DYNAMIC_SHADER.*/
+    int gbuffer_shader; /**<The corresponding gbuffer rendering shader branch in ::DEPTH_PRE_PASS_SHADER or ::DEPTH_PRE_PASS_SHADER_MSAA.*/
+    /**
+     * @name Color and PBR Factors
+     * @brief Factors used to change color and Material properties during rendering.
+     * @{
+     */
+    vec4 ka; /**<Ambient.*/
+    vec4 kd; /**<Diffuse.*/
+    vec4 ks; /**<Specular (unused).*/
+    vec4 ke; /**<Emissive.*/
+    float metallic;
+    float roughness;
+    float ao_strength;
+    float emissive_strength;
+    /** @} */
 
-} EmissiveTriangle;
+    float absorption_coefficients[AUDIO_NUM_BANDS]; /**<How much audio is absorbed when hitting this Material.*/
+    float scattering_coefficients[AUDIO_NUM_BANDS]; /**<How much audio specularly reflects when hitting this Material.*/
+
+    /**
+     * @name Texture Indices
+     * @brief Texture indices into Globals.images.
+     * @{
+     */
+    int diffuse_tex;
+    int normal_tex;
+    int emissive_tex;
+    int arm_tex;
+    int ao_tex;
+    int mr_tex;
+    /** @} */
+
+    float normal_scale; /**<Unused - Used to determine how much of the texture normal to use.*/
+    AlphaMode alpha_mode; /**<Determines transparency.*/
+    float alpha_cutoff; /**<Used to discard transparent Material%s.*/
+
+    
+    bool double_sided; /**<If we should disable backface culling.*/
+    bool override_transparent; /**<If we are overriding transparency of this Material.*/
+    bool override_arm; /**<If we override the ARM texture and bind a dummy instead.*/
+    
+} Material;
 
 
-
+/**
+ * @brief The GPU side padded structure for Material%s. 
+ * @see Material
+ * @see ::MATERIAL_SSBO
+ */
 typedef struct MaterialGPU
 {
 
@@ -1424,6 +1580,12 @@ typedef struct MaterialGPU
 
 } MaterialGPU;
 
+/**
+ * @brief The GPU side SSBO structure. 
+ * @see Material
+ * @see MaterialGPU
+ * @see ::MATERIAL_SSBO
+ */
 typedef struct MaterialData
 {
     
@@ -1431,6 +1593,11 @@ typedef struct MaterialData
     
 } MaterialData;
 
+/**
+ * @brief The GPU side structure of a Point, used for path traced baking. 
+ * @see Point
+ * @see ::VERTEX_SSBO
+ */
 typedef struct VertexGPU
 {
 
@@ -1444,6 +1611,11 @@ typedef struct VertexGPU
     
 } VertexGPU;
 
+/**
+ * @brief The GPU side structure for the SSBO of Point%s. 
+ * @see Point
+ * @see ::VERTEX_SSBO
+ */
 typedef struct VertexData
 {
     
@@ -1451,24 +1623,40 @@ typedef struct VertexData
     
 } VertexData;
 
+/**
+ * @brief The GPU side structure of a MeshFace, used for path traced baking. 
+ * @see MeshFace
+ * @see ::TRI_SSBO
+ */
 typedef struct TriGPU
 {
 
-    uvec3 indices;
+    uvec3 indices; /**<Unused - the indices of each point.*/
     uint32_t material_id;
     vec3 normal;
-    uint32_t mesh_id;
-    uint32_t bvh_index;
-    uint32_t tri_idx;
+    uint32_t mesh_id; /**<The Mesh id.*/
+    uint32_t bvh_index; /**<Global: The bvh index + the offset for the current Mesh.*/
+    uint32_t tri_idx; /**<Local: The bvh index for this MeshFace.*/
     uint32_t pad1;
     uint32_t pad2;
     
+    /**
+     * @name Vertices
+     * @brief The vertices for this MeshFace.
+     * @{
+     */
     VertexGPU v0;
     VertexGPU v1;
     VertexGPU v2;
+    /** @} */
     
 } TriGPU;
 
+/**
+ * @brief The GPU side structure for the SSBO of MeshFace%s. 
+ * @see MeshFace
+ * @see ::TRI_SSBO
+ */
 typedef struct TriData
 {
     
@@ -1476,21 +1664,26 @@ typedef struct TriData
     
 } TriData;
 
+/**
+ * @brief The GPU side structure of a Mesh, used for path traced baking. 
+ * @see Mesh
+ * @see ::MESH_SSBO
+ */
 typedef struct MeshGPU
 {
 
     uint32_t mesh_node_id;
     uint32_t mesh_id;
 
-    uint32_t node_count;
-    uint32_t node_offset;
-    uint32_t vertex_offset;
-    uint32_t vertex_count;
-    uint32_t tri_offset;
-    uint32_t tri_count;
-    uint32_t bvh_index;
-    uint32_t is_static;
-    uint32_t skip_directional_light;
+    uint32_t node_offset; /**<Where the BVHNode%s start in the SSBO.*/
+    uint32_t node_count; /**<How many BVHNode%s are in this Mesh.*/
+    uint32_t vertex_offset; /**<Where the VertexGPU%s for this Mesh start in the SSBO.*/
+    uint32_t vertex_count; /**<How many VertexGPU%s this Mesh has.*/
+    uint32_t tri_offset; /**<Where the TriGPU%s for this Mesh start in the SSBO.*/
+    uint32_t tri_count; /**<How many TriGPU%s there are for this Mesh.*/
+    uint32_t bvh_index; /**<The BVH index for this Mesh in the scene BVH.*/
+    uint32_t is_static; /**<If the mesh is not static it is not considered for path tracing.*/
+    uint32_t skip_directional_light; /**<Skip directional lights so that they go through this Mesh.*/
     uint32_t pad2;
 
     mat4 global_matrix;
@@ -1498,6 +1691,11 @@ typedef struct MeshGPU
     
 } MeshGPU;
 
+/**
+ * @brief The GPU side structure for the SSBO of Mesh%s. 
+ * @see Mesh
+ * @see ::MESH_SSBO
+ */
 typedef struct MeshData
 {
     
@@ -1505,6 +1703,9 @@ typedef struct MeshData
     
 } MeshData;
 
+/**
+ * @brief The GPU side structure of an AABB, used for path traced baking. 
+ */
 typedef struct AABBGPU
 {
 
@@ -1519,6 +1720,11 @@ typedef struct AABBGPU
     
 } AABBGPU;
 
+/**
+ * @brief The GPU side structure of a BVHNode, used for path traced baking. 
+ * @see ::MESH_BVH_SSBO
+ * @see ::SCENE_BVH_SSBO
+ */
 typedef struct BVHNodeGPU
 {
 
@@ -1543,6 +1749,11 @@ typedef struct BVHNodeGPU
     
 } BVHNodeGPU;
 
+/**
+ * @brief The GPU side structure for the SSBO of BVHNode%s. 
+ * @see ::MESH_BVH_SSBO
+ * @see ::SCENE_BVH_SSBO
+ */
 typedef struct BVHGPU
 {
 
@@ -1550,6 +1761,10 @@ typedef struct BVHGPU
     
 } BVHGPU;
 
+/**
+ * @brief Used to store SH coefficients when baking LPV%s into ProbeVolume%s. 
+ * @see bake_lighting_probe_volume()
+ */
 typedef struct SHDataGPU
 {
     vec3 pos;
@@ -1557,6 +1772,10 @@ typedef struct SHDataGPU
     vec4 coefficients[SH_MAX];
 } SHDataGPU;
 
+/**
+ * @brief GPU side structure for an OBB. Used for LPV sampling. 
+ * @see render/dynamic.vert
+ */
 typedef struct OBBGPU
 {
 
@@ -1573,6 +1792,11 @@ typedef struct OBBGPU
 
 } OBBGPU;
 
+/**
+ * @brief GPU side structure for an OBB UBO. Used for LPV sampling. 
+ * @see ::PROBE_VOLUME_UBO
+ * @see render/dynamic.vert
+ */
 typedef struct ProbeVolumeUBO
 {
     
@@ -1580,6 +1804,11 @@ typedef struct ProbeVolumeUBO
     
 } ProbeVolumeUBO;
 
+/**
+ * @brief The UBO structure for pushing the closest ReflectionProbe%s to the main shader. 
+ * @see ::RPROBE_UBO
+ * @see render/dynamic.vert
+ */
 typedef struct RProbeUBO
 {
 
@@ -1597,11 +1826,20 @@ typedef struct RProbeUBO
 } RProbeUBO;
 
 
+/**
+ * @brief The structure that stores lightmap uvs. 
+ * @see ::LIGHTMAP_SSBO
+ * @see add_all_meshes_to_buffer()
+ */
 typedef struct LightmapGPU
 {
     vec4 uv;
 } LightmapGPU;
 
+/**
+ * @brief The structure for the ::LIGHTMAP_SSBO 
+ * @see add_all_meshes_to_buffer()
+ */
 typedef struct LightmapSSBO
 {
     
@@ -1609,11 +1847,24 @@ typedef struct LightmapSSBO
     
 } LightmapSSBO;
 
+/**
+ * @brief The structure for cluster AABB%s for clustered shading. 
+ * @see ::CLUSTER_SSBO
+ * @see render/init_cluster_aabbs.comp
+ */
 typedef struct ClusterAABBGPU
 {
+
     vec4 min;
     vec4 max;
+
 } ClusterAABBGPU;
+
+/**
+ * @brief The structure that we push clusters to when we cull them in clustered shading. 
+ * @see ::CLUSTER_SSBO
+ * @see render/cull_clusters.comp
+ */
 typedef struct ClusterGPU
 {
     uint32_t offset;
@@ -1621,102 +1872,175 @@ typedef struct ClusterGPU
 } ClusterGPU;
 
 
+/**
+ * @brief The atlas that UVIsland%s are allocated on in LightmapRect%s during UV lightmapping. 
+ * @see SceneData.LightmapData
+ * @see init_lightmap_atlas()
+ * @see allocate_lightmap_rect()
+ */
 typedef struct LightmapAtlas{
 
-    int width;
-    int height;
-    int block_size; 
-    unsigned char *occupied; 
+    int width; /**<Width of the atlas.*/
+    int height; /**<Height of the atlas.*/
+    int block_size; /**<How much to allocate in one rect.*/
+    unsigned char *occupied; /**<The map of what is currently occupied by LightmapRect%s.*/
     
 } LightmapAtlas;
 
-typedef struct {
+/**
+ * @brief The rects that are slotted into thet LightmapAtlas during UV generation for UV lightmaps. 
+ * @see SceneData.LightmapData
+ * @see init_lightmap_atlas()
+ * @see allocate_lightmap_rect()
+ */
+typedef struct LightmapRect {
 
-    int u, v, w, h;
-    int padding;
-    int success;
+    int u; /**<The width of the rect in UV space.*/
+    int v; /**<The height of the rect in UV space.*/
+    int w; /**<The width of the rect in pixels.*/
+    int h; /**<The height of the rect in piexles.*/
+    int padding; /**<How much padding to avoid light leaking.*/
+    int success; /**<If the rect was allocated.*/
 
 } LightmapRect;
 
-typedef struct {
-
-    vec2 uvs[3];
-
-    int min_y, max_y;
-    int min_x, max_x;
-
-
-} LightmapUV;
+/**
+ * @brief The lightmap UVs stored on UVIsland%s per MeshFace. 
+ * @see assign_uvs()
+ */
+typedef vec2 LightmapUV[3]; 
 
 
+/**
+ * @brief The UVIsland%s that are generated from contiguous MeshFace%s with similar planes for UV lightmapping. 
+ * @see LightmapData.islands
+ * @see assign_uvs()
+ * @see build_uv_islands()
+ */
 typedef struct UVIsland
 {
 
-    int mesh_node;
-    Vector tris; // size_t
-    vec3 normal;
-    LightmapRect rect;
-    LightmapUV * uvs;
-    bool currently_rasterizing;
-    bool valid;
-    vec3 centroid;
+    int mesh_node; /**<The MeshNode this island belongs to.*/
+    Vector tris; /**<size_t indices of the MeshFace%s in this island.*/
+    vec3 normal; /**<The normal of the island.*/
+    LightmapRect rect; /**<The rect that this island allocates.*/
+    LightmapUV * uvs; /**<The uvs for each MeshFace on this islands.*/
+    bool currently_rasterizing; /**<If we are going to rasterize this island on the next lightmap bake.*/
+    bool valid; /**<If this island is valid to rasterize.*/
+    vec3 centroid; /**<The centroid of the MeshFace%s on this island.*/
     
 } UVIsland;
 
+/**
+ * @brief The metadata for the lightmap settings. 
+ * @see Globals.scene_data
+ * @see assign_uvs()
+ * @see build_uv_islands()
+ * @see init_lightmap_data()
+ */
 typedef struct LightmapData
 {
 
-
-    Vector islands; // UVIsland
-    LightmapAtlas atlas;
-    vec4 *buffer;
-
-    int tri_count; // the count when the lightmap was created. used to free the right amount of uvs later.
-    int tri_capacity;
-    GLuint texture_id;
-    
-    bool sample_cubemap;
+    Vector islands;  /**<The UVIsland%s on the current lightmap.*/
+    LightmapAtlas atlas; /**<The atlas settings for the lightmap.*/
+    GLuint texture_id; /**<The texture ID for the current lightmap.*/
+    bool sample_cubemap; /**<Unused - was used to toggle skybox sampling.*/
     
 } LightmapData;
 
 
-// each mesh needs submeshes to draw with different materials
+/**
+ * @brief This bridges from MeshNode%'s MeshFace%s to their respective UVIsland%s. Used when uploading vertices to the GPU. 
+ * @see MeshNode
+ * @see assign_uvs()
+ * @see build_uv_islands()
+ * @see add_all_meshes_to_buffer()
+ */
 typedef struct UVMapping
 {
 
-    size_t uv_island;
-    size_t uv_idx;
-    bool valid;
+    size_t uv_island; /**<What island inside of LightmapData.islands that this MeshFace refers to.*/
+    size_t uv_idx; /**<The UV slot on the UVIsland.*/
+    bool valid; /**<If this mapping is valid.*/
     
 } UVMapping;
 
 typedef struct Entity Entity;
 
-
+/**
+ * @brief Defines collision types with different behaviors and mesh setup and validation. 
+ * @see PhysicsComponent
+ * @see physics/physics.c
+ * @see core/camera.c
+ */
 typedef enum CollisionType
 {
-    COL_TRIANGLE, COL_HULL, COL_CAPSULE
+
+    COL_TRIANGLE, /**<The triangle BVH is generated for this mesh and triangle tests are performed on it.*/
+    COL_HULL, /**<Incremental hull generates a ConvexHull which is used for collision tests.*/
+    COL_CAPSULE /**<A capsule is constructed via AABB dimensions and is used for collision tests.*/
+
 } CollisionType;
+
+/**
+ * @brief Defines physics types with different behaviors in impulse resolution. 
+ * @see PhysicsComponent
+ * @see physics/physics.c
+ * @see core/camera.c
+ */
 typedef enum PhysicsType
 {
-    PHYSICS_NONE, PHYSICS_FULL, PHYSICS_NO_ROT, PHYSICS_GRAVITY_ONLY
+
+    PHYSICS_NONE, /**<Unused.*/
+    PHYSICS_FULL, /**<All impulse resolution options applied.*/
+    PHYSICS_NO_ROT, /**<Angular velocity is disabled.*/
+    PHYSICS_GRAVITY_ONLY /**<Only gravity is applied and cannot be moved via external forces.*/
+
 } PhysicsType;
 
 
+/**
+ * @brief The capsule data for collisions. 
+ * @see PhysicsComponent
+ * @see physics/physics.c
+ * @see core/camera.c
+ * @see init_PC()
+ */
 typedef struct CapsuleData
 {
-    vec3 a, b; float radius;
-    float height;
+
+    vec3 a; /**<The bottom of the capsule (based on AABB).*/
+    vec3 b; /**<The top of the capsule (based on AABB).*/
+    float radius; /**<The radius of the capsule.*/
+
 } CapsuleData;
 
+/**
+ * @brief Hull data that refers to ConvexHull%s of Mesh%es. Populated during traversal and passed into GJK.
+ * @see PhysicsComponent
+ * @see physics/physics.c
+ * @see physics/GJK.c
+ * @see core/camera.c
+ * @see init_PC()
+ */
 typedef struct HullData
 {
-    vec3 * pts;
-    size_t count;
-    HullFace * mfs;
-    size_t face_count;
+
+    vec3 * pts; /**<Points to ConvexHull.vertices*/
+    size_t count; /**<Stored from ConvexHull.vertices.count*/
+    HullFace * mfs; /**<Points to ConvexHull.hull_faces*/
+    size_t face_count; /**<Stored from ConvexHull.hull_faces.count*/
+
 } HullData;
 
+/**
+ * @brief The tagged union for collision type, stored in PhysicsComponent. 
+ * @see PhysicsComponent
+ * @see physics/physics.c
+ * @see physics/GJK.c
+ * @see core/camera.c
+ * @see init_PC()
+ */
 typedef struct CollisionData
 {
     CollisionType type;
@@ -1727,53 +2051,82 @@ typedef struct CollisionData
 } CollisionData;
 
 
+/**
+ * @brief Entity Component used for physics resolution. 
+ * @see ::PHYSICS_COMPONENTS
+ * @see physics/physics.c
+ * @see physics/GJK.c
+ * @see core/camera.c
+ * @see init_PC()
+ * @see update_physics_components()
+ * @see Entity
+ */
 struct PhysicsComponent
 {
 
-    size_t id;
-    bool free;
-    bool at_rest;
-    bool player_pc;
+    size_t id; /**<The ID in ::PHYSICS_COMPONENTS*/
+    bool free; /**<If this is an empty component.*/
+    bool player_pc; /**<If this is the Player PhysicsComponent.*/
+    bool at_rest; /**<If this component is at rest it does not update.*/
+    int rest_counter; /**<The counter that decreases until at rest.*/
 
-    int rest_counter;
-    
-    float mass;
-    float restitution;
-    float mu;
+    /**
+     * @name Physics Constants
+     * @brief These are set on init and control how the component behaves.
+     * @{
+     */
+    float mass; /**<Mass of the component.*/
+    float restitution; /**<The restitution (bounce).*/
+    float mu; /**<The friction constant for the component.*/
+    vec3 center_of_mass; /**<COM based on the AABB.*/
+    mat3 inverse_inertia; /**<IIA (currently just a calculated box)*/
+    /** @} */
 
-    vec3 vel;
-    vec3 old_vel;
-    vec3 accel;
-    vec3 angular_velocity;
-    vec3 old_angular;
-    vec3 center_of_mass;
-    mat3 inverse_inertia;
-    mat3 inverse_world;
+    vec3 vel; /**<Velocity.*/
+    vec3 old_vel; /**<Last step's velocity.*/
+    vec3 accel; /**<Acceleration from this step + acceleration from last step * ::ACCEL_BETA.*/
+    vec3 angular_velocity; /**<Rotational velocity.*/
+    vec3 old_angular; /**<Last step's angular velocity.*/
+    mat3 inverse_world; /**<PhysicsComponent.inverse_inertia transformed by rotation into world space for the current step..*/
 
-    vec3 corrected_position;
+    AABB aabb; /**<Bounding box of the PC, determined based on Mesh or MeshNode.*/
 
-    AABB aabb;
+    CollisionData cd; /**<Tagged union for collision options.*/
+    PhysicsType physics_type; /**<Impulse resolution options.*/
 
-    CollisionData cd;
-    PhysicsType physics_type;
-
-    Entity * ent;
-    // size_t entity_id;
-
+    Entity * ent; /**<Which Entity this component belongs to.*/
 
 };
 
 
+/**
+ * @brief Animation targets based on type to cast. 
+ * @see AnimationTrack
+ * @see AnimationComponent
+ * @see core/animation.c
+ */
 typedef enum AnimationTargetType
 {
     ANIM_TARGET_FLOAT, ANIM_TARGET_VEC3, ANIM_TARGET_INT, ANIM_TARGET_BOOL, ANIM_TARGET_MAX
 } AnimationTargetType;
 
+/**
+ * @brief Indicates what type of structure the animation is targeting. 
+ * @see AnimationTrack
+ * @see AnimationComponent
+ * @see core/animation.c
+ */
 typedef enum AnimationDataType
 {
     ANIM_DATA_MN, ANIM_DATA_MESH, ANIM_DATA_AC, ANIM_DATA_PC, ANIM_DATA_ENT, ANIM_DATA_LIGHT, ANIM_DATA_ASSET_INSTANCE, ANIM_DATA_ASSET, ANIM_DATA_RPROBE, ANIM_DATA_MAX
 } AnimationDataType;
 
+/**
+ * @brief Tagged union for the value stored in a keyframe. 
+ * @see core/animation.c
+ * @see AnimationTrack
+ * @see AnimationComponent
+ */
 typedef struct AnimationKeyframe
 {
     float time;
@@ -1787,53 +2140,73 @@ typedef struct AnimationKeyframe
 } AnimationKeyframe;
 
 
-#define MAX_KEYFRAMES 64
+#define MAX_KEYFRAMES 64 /**<Maximum AnimationKeyframe%s in an AnimationTrack.*/
+
+/**
+ * @brief Tagged union for the value stored in a keyframe. 
+ * @see core/animation.c
+ * @see AnimationComponent
+ */
 typedef struct AnimationTrack
 {
 
-    AnimationTargetType type;
-    AnimationKeyframe kf[MAX_KEYFRAMES];
-    int kf_count;
-    float current_time;
-    float duration;
-    bool loop;
+    AnimationTargetType type; /**<The type of the data stored on AnimationKeyframe.*/
+    AnimationKeyframe kf[MAX_KEYFRAMES]; /**<The AnimationKeyframe%s for this track.*/
+    int kf_count; /**<The amount of AnimationKeyframe%s.*/
+    float current_time; /**<How long the animation has been running.*/
+    float duration; /**<The duration of all of the AnimationKeyframe%s.*/
+    bool loop; /**<If the animation loops.*/
 
-    AnimationDataType data_type;
-    size_t data_index_offset;
-    size_t data_byte_offset;
-    void * data;
-    AnimationTargetType completion_type;
-    void * completion_data;
-    bool active;
+    AnimationDataType data_type; /**<The type of data that is changed during animation.*/
+    size_t data_index_offset; /**<The index of the structure we are targeting.*/
+    size_t data_byte_offset; /**<The byte offset in the structure we are targeting.*/
+    void * data; /**<Stored pointer to data to change during animation.*/
+    AnimationTargetType completion_type; /**<Type of data that is modified on completion.*/
+    void * completion_data; /**<Pointer to the data that is modified on completion.*/
+    bool active; /**<If this animation is currently running.*/
     
 } AnimationTrack;
 
-    
+#define MAX_TRACKS 64  /**<Maximum AnimationTrack%s in an AnimationComponent.*/
 
-
-#define MAX_TRACKS 64
+/**
+ * @brief The animation component for interpolation between AnimationKeyframe%s. 
+ * @see ::ANIMATION_COMPONENTS
+ * @see core/animation.c
+ * @see AnimationTrack
+ * @see AnimationKeyframe
+ * @see Entity
+ */
 typedef struct AnimationComponent
 {
 
-    
-    AnimationTrack tracks[MAX_TRACKS];
-    int track_count;
-    bool free;
-    Entity * ent;
-    
+    AnimationTrack tracks[MAX_TRACKS]; /**<The AnimationTracks with individual values that occur simultaneously.*/
+    int track_count;                   /**<The amount of AnimationTrack%s.*/
+    bool free;                         /**<If the component is empty.*/
+    Entity * ent;                      /**<The pointer to the Entity.*/
     
 } AnimationComponent;
 
+/**
+ * @brief Types of Entity used for Filter%s. 
+ * @see Entity
+ * @see Filter
+ */
 typedef enum EntityType
 {
+
     ENTITY_NONE,
     ENTITY_TRIGGER,
     ENTITY_FILTER
     
 } EntityType;
 
-
-
+/**
+ * @brief Entity State%s that change behaviors and available reactions to Trigger%s. 
+ * @see Entity
+ * @see Filter
+ * @see State
+ */
 typedef enum StateType
 {
 
@@ -1850,6 +2223,11 @@ typedef enum StateType
 } StateType;
 
 
+/**
+ * @brief Entity State%s that control what functions are available for an Entity.
+ * @see Entity
+ * @see Filter
+ */
 typedef struct State
 {
 
@@ -1859,236 +2237,238 @@ typedef struct State
 } State;
 
 
+
+/**
+ * @brief Entity structure that holds components and references to the data it owns.
+ * @see ::ENTITIES
+ * @see Filter
+ */
 struct Entity
 {
 
-    size_t id;
-    bool free;
+    size_t id;                       /**<ID inside of ::ENTITIES.*/
+    bool free;                       /**<If the Entity is empty.*/
 
-    int mesh_node;
-    int skin;
-    AABB aabb;
+    int mesh_node;                   /**<The top-most MeshNode that belongs to this Entity.*/
+    int skin;                        /**<The GLTFSkin to be modified by this Entity (skeletal animations).*/
+    AABB aabb;                       /**<The bounding box over all MeshNode%s for this Entity.*/
 
-    EntityType type;
-    union
-    {
-        Trigger trigger;
-        Filter filter;
-    } as;
-    
-    State * state;
-    
-    struct AssetInstance * instance;
-    PhysicsComponent * pc;
-    AnimationComponent * ac;
+    EntityType type;                 /**<Type of entity for Filter%s.*/
+    union                            
+    {                                
+        Trigger trigger;             
+        Filter filter;               
+    } as;                            
+
+    State * state;                   /**<The current State that describes actions for this Entity.*/
+    struct AssetInstance * instance; /**<The AssetInstance that spawned this Entity.*/
+    PhysicsComponent * pc;           /**<The PhysicsComponent inside of ::PHYSICS_COMPONENTS.*/
+    AnimationComponent * ac;         /**<The AnimationComponent inside of ::ANIMATION_COMPONENTS.*/
     
 };
 
-#define MAX_NODE_CHILDREN 128
+// TODO Probably expand this or change this number.
+#define MAX_NODE_CHILDREN 128 /**<Maximum amount of direct MeshNode children to be stored in a MeshNode.*/
+
 /**
- * @brief Mesh Nodes
- * @see main()
+ * @brief MeshNode%s that describe the position of Mesh%es, GLTF nodes for GLTFAnimation%s, or hold references to other MeshNode%s.
+ * @see Mesh
+ * @see Entity
+ * @see PhysicsComponent
+ * @see GLTFSkin
+ * @see Globals
  */
 typedef struct MeshNode {
     
-    char name[256];
-    bool active;
-    bool free;
-    size_t id;
-    size_t local_id;
-    int parent;        
+    char name[256];  /**<The name generated on loading from file.*/
+    bool active;     /**<If the MeshNode can be effected.*/
+    bool free;       /**<If the MeshNode can be replaced.*/
+    size_t id;       /**<The ID inside of Globals.mesh_nodes.*/
+    size_t local_id; /**<The ID local to the original file structure.*/
+    /**
+     * @name Transformation Fields
+     * @brief Builds the TRS for the node within the node graph.
+     * @{
+     */
     vec3 translation;
     vec4 rotation;
     vec3 scale;
     mat4 local_matrix;
     mat4 global_matrix;
-    int mesh;
-    int asset;
-    int asset_instance;
-    int skin;
-    int children[MAX_NODE_CHILDREN];
-    int child_count;
-    CollisionType collision_type;
-    bool static_mesh;
-    bool root;
+    /** @} */
 
-    size_t offset;
-    size_t count;
+    int mesh;                        /**<The Mesh it references.*/
+    int asset;                       /**<The Asset it comes from.*/
+    int asset_instance;              /**<The AssetInstance it belongs to.*/
+    int skin;                        /**<The GLTFSkin it controls.*/
+    uint32_t skin_offset;            /**<The offset into the ::JOINT_SSBO, comes from DrawCommand.*/
 
-    PhysicsType physics_mode;
+    int parent;                      /**<The parent to this node, a global index into Globals.mesh_nodes.*/
+    /**
+     * @todo Remove this static array and replace it with a safer memory system for larger node graphs.
+     */
+    int children[MAX_NODE_CHILDREN]; /**<The children to this node, a global index into Globals.mesh_nodes.*/
+    int child_count;                 /**<The amount of children.*/
 
+    bool static_mesh;                /**<If this mesh is static (DrawArrays) or dynamic (DrawElements), used to indicate Lightmap status.*/
+
+    size_t offset;                   /**<Offset into the ::MAIN_VBO.*/
+    size_t count;                    /**<Count of vertices pushed into the ::MAIN_VBO.*/
+
+
+    /**
+     * @name Light Frame Data
+     * @brief Per frame offsets and counts for nearby Light%s.
+     * @todo Get rid of the point light stuff, no longer needed.
+     * @{
+     */
     size_t point_light_offset;
     size_t point_light_count;
     size_t directional_light_offset;
     size_t directional_light_count;
     size_t spot_light_offset;
     size_t spot_light_count;
+    /** @} */
 
-    bool skip_directional_uv_lighting;
+    bool skip_directional_uv_lighting; /**<Skips directional Light%s and rays go through them. Not in use.*/
+    UVMapping * uv_map;                /**<The mapping between MeshNode%s and UVIsland%s for uv lightmapping.*/
 
-    UVMapping * uv_map;
-
+    /**
+     * @name SubMesh Rendering IDs
+     * @brief Indices that correspond to DrawCommand%s and MeshNodeDataGPU used during upload_instance_data() for MDI.
+     * @todo Expand SubMesh count, handle memory otherwise, and define it.
+     * @{
+     */
     uint32_t mesh_data_id[32];
     uint32_t command_id[32];
-    uint32_t skin_offset;
+    /** @} */
+    
+    Entity * ent;                 /**<The Entity this MeshNode refers to (all children point to the same Entity as parent).*/
+    CollisionType collision_type; /**<The type of collision to apply for the PhysicsComponent that may not have been created yet.*/
+    PhysicsType physics_mode;     /**<The type of physics to apply for the PhysicsComponent that may not have been created yet.*/
+    PhysicsComponent * pc;        /**<The physics controller initialized based on data from this MeshNode.*/
 
-    
-    Entity * ent;
-    PhysicsComponent * pc;
+    /**
+     * @brief The AABB of the MeshNode and its children.
+     * @note This is used for PhysicsComponents on MeshNode%s without Mesh%es.
+     */
     AABB aabb;
-    
-    
+        
 } MeshNode;
 
+/**
+ * @brief Sections of Mesh%es that are divided based on Material for batching and DrawCommand ordering purposes.
+ * @see Mesh
+ * @see MeshNode
+ * @see load_gltf()
+ * @see add_all_meshes_to_buffer()
+ */
 typedef struct SubMesh
 {
     
-    size_t material;
-    size_t first_vertex;
-    size_t vertex_count;
-    size_t first_index;
-    size_t index_count;
-    size_t lm_offset;
-    size_t draw_offset;
-    size_t command_id;
-    size_t mesh_data_id;
+    size_t material;     /**<The Material.*/
+    size_t first_vertex; /**<The first Point in Mesh.vertices that this SubMesh refers to.*/
+    size_t vertex_count; /**<The amount of Point%s that this SubMesh refers to.*/
+    size_t first_index;  /**<The first index that this SubMesh refers to (Mesh.tris count * 3).*/
+    size_t index_count;  /**<The amount of indices that this SubMesh refers to: Mesh.tris -> MeshFace.indices.*/
+    size_t lm_offset;    /**<The starting index in ::LIGHTMAP_DATA that this SubMesh points to.*/
+    size_t draw_offset;  /**<Currently the same index as SubMesh.lm_offset.*/
+    size_t command_id;   /**<The DrawCommand this is assigned to.*/
+    size_t mesh_data_id; /**<The MeshNodeDataGPU this is assigned to.*/
 
 } SubMesh;
 
+/**
+ * @brief Adjacent triangles for each MeshFace on a Mesh.
+ * @see build_adjacency_map()
+ * @see walk_coplanar_adjacency()
+ */
+typedef struct TriangleAdjacency
+{
+    Vector adjacent_indices; /**<size_t indices.*/
+    
+} TriangleAdjacency;
+
+/**
+ * @brief A Mesh with geometry data that is either initialized as static or dynamic and split into SubMesh%es.
+ * @see MeshNode
+ * @see Globals
+ * @see init_mesh()
+ */
 typedef struct Mesh
 {
 
-    char name[256];
+    char name[256];   /**<The Mesh name assigned on load.*/
+    size_t id;        /**<The ID into Globals.meshes.*/
+    size_t asset_id;  /**<The Asset ID into Globals.assets.*/
+    bool bvh_prim;    /**<This Mesh has a BVH computed.*/
+    bool static_mesh; /**<This Mesh is static and must create a BVH or if not it must perform incremental_hull.*/
+    AABB aabb;        /**<The AABB of the mesh.*/
 
-    bool bvh_prim;
-   
-    size_t asset_id;
-    
-    size_t id;
+    size_t offset; /**<The offset into ::MAIN_VBO.*/
+    size_t count;  /**<The count pushed into ::MAIN_VBO.*/
 
-    AABB aabb;
+    /**
+     * @name Geometry
+     * @brief Geometry vectors that are initialized when loading from file and on incremental hull.
+     * @{
+     */
+    Vector submeshes; /**<The SubMesh%es split via Material%s.*/
+    Vector hulls;     /**<The ConvexHull%s generated if this Mesh is dynamic.*/
+    Vector vertices;  /**<The Point%s.*/
+    Vector tris;      /**<The MeshFace%s.*/
+    /** @} */
 
-    size_t offset;
+    TriangleAdjacency * tri_adjacency; /**<Adjacent triangles allocated per MeshFace.*/
 
-    size_t count;
-
-    bool static_mesh;
-
-    Vector submeshes;
-
-    Vector hulls;
-
-    Vector nodes;
-
-    Vector vertices;
-
-    Vector tris;
-
-    TriangleAdjacency * tri_adjacency;
-
-    Vector tri_aabbs;
-
-    // leaf indices is a massive array with all of the leaves' indices
-    // it is unordered and only leaves index into it
-    Vector leaf_indices;
-
-    // this is a working sorted array to make the algorithm faster in terms of splitting the bvh evenly
-    size_t * bvh_indices;
-
-
+    /**
+     * @name BVH
+     * @brief BVH fields filled if this Mesh is static.
+     * @todo We may be able to remove tri_aabbs.
+     * @{
+     */
+    size_t * bvh_indices; /**<Indices for the BVH, sorted as the BVH is generated.*/
+    Vector nodes;         /**<BVHNode%s.*/
+    Vector tri_aabbs;     /**<AABB%s for each triangle inside of this Mesh.*/
+    /** @} */
     
 } Mesh;
 
 
-
-
+/**
+ * @brief Where Material textures are saved upon loading from file.
+ * @see Material
+ * @see Globals
+ */
 typedef struct Image
 {
 
-    char path[256];
-    char mime_type[256];
-    char name[256];
-    int channels;
-    unsigned char * buf;
-    GLuint i;
-    GLuint64 handle;
-    int width;
-    int height;
-    bool sRGB;
+    char path[256];      /**<The path to the Image.*/
+    char mime_type[256]; /**<Unused, refer to GLTF spec.*/
+    char name[256];      /**<The name of the Image file.*/
+    int channels;        /**<The amount of channels for an Image (RGBA).*/
+    unsigned char * buf; /**<If available, the raw bytes of the Image.*/
+    GLuint i;            /**<The handle for the texture.*/
+    GLuint64 handle;     /**<The handle for the bindless texture.*/
+    int width;           
+    int height;          
+    bool sRGB;           /**<To load in this Image as sRGB.*/
 
-    GLint min_filter;
-    GLint mag_filter;
-    GLint wrap_s;
-    GLint wrap_t;
+    GLint min_filter;    /**<Refer to OpenGL texture loading.*/
+    GLint mag_filter;    /**<Refer to OpenGL texture loading.*/
+    GLint wrap_s;        /**<Refer to OpenGL texture loading.*/
+    GLint wrap_t;        /**<Refer to OpenGL texture loading.*/
     
 } Image;
 
-#define MAX_TEX_LABELS 600
-#define LABEL_LEN 256
-typedef struct ComboLabel {
+/**
+ * @brief The structure for Material%s when loaded in from file.
+ * @see Material
+ * @see GLTFDoc
+ */
+typedef struct GLTFMaterial {
 
-    char buffer[MAX_TEX_LABELS][LABEL_LEN];
-    const char *ptrs[MAX_TEX_LABELS];
-    int selected;
-  
-    int item_to_id[MAX_TEX_LABELS];
-    int item_count;
-
-} ComboLabel;
-
-typedef enum AlphaMode
-{
-    ALPHA_OPAQUE, ALPHA_MASK, ALPHA_BLEND
-} AlphaMode;
-
-
-typedef struct Material
-{
-
-    char name[256];
-    int fwd_shader;
-    int gbuffer_shader;
-
-    // ambient
-    vec4 ka;
-    // diffuse
-    vec4 kd;
-    // specular
-    vec4 ks;
-    // emissive
-    vec4 ke;
-
-    float absorption_coefficients[AUDIO_NUM_BANDS];
-
-    float scattering_coefficients[AUDIO_NUM_BANDS];
-
-    int diffuse_tex;
-    int normal_tex;
-    int emissive_tex;
-    int arm_tex;
-    int ao_tex;
-    int mr_tex;
-
-    float normal_scale;
-    float ao_strength;
-    float metallic;
-    float roughness;
-    AlphaMode alpha_mode;
-    float alpha_cutoff;
-
-    float emissive_strength;
-    
-    
-    bool double_sided;
-    bool override_transparent;
-    bool override_arm;
-    
-} Material;
-
-
-typedef struct {
     char name[64];
-
 
     float base_color_factor[4];
     float metallic_factor;     
@@ -2109,7 +2489,6 @@ typedef struct {
     bool double_sided;
 
     float absorption_coefficients[AUDIO_NUM_BANDS];
-
     float scattering_coefficients[AUDIO_NUM_BANDS];
 
     float emissive_strength;
@@ -2119,12 +2498,22 @@ typedef struct {
 
 } GLTFMaterial;
 
+/**
+ * @brief The raw bytes of a GLTF file.
+ * @see GLTFDoc
+ */
 typedef struct {
+
     char *uri;
     int byteLength;
     unsigned char *data;
+
 } GLTFBuffer;
 
+/**
+ * @brief The views of a GLTF file.
+ * @see GLTFDoc
+ */
 typedef struct {
     int buffer;
     int byteOffset;
@@ -2132,6 +2521,10 @@ typedef struct {
     int byteStride;
 } GLTFBufferView;
 
+/**
+ * @brief The accessors of a GLTF file.
+ * @see GLTFDoc
+ */
 typedef struct {
     int bufferView;
     int byteOffset;
@@ -2140,6 +2533,10 @@ typedef struct {
     char type[8];     
 } GLTFAccessor;
 
+/**
+ * @brief The primitives of a GLTF file.
+ * @see GLTFDoc
+ */
 typedef struct {
     int position;     
     int normal;       
@@ -2151,14 +2548,35 @@ typedef struct {
     int material;     
 } GLTFPrimitive;
 
+/**
+ * @brief The Mesh%es of a GLTF file.
+ * @see Mesh
+ * @see GLTFDoc
+ */
 typedef struct {
     GLTFPrimitive *prims;
     int primCount;
 } GLTFMesh;
 
+/**
+ * @brief Types of Animation interpolation.
+ * @see Animation
+ * @see GLTFDoc
+ */
 typedef enum {LINEAR, STEP, CUBICSPLINE } AnimationInterpolation;
+
+/**
+ * @brief What an GLTFAnimationChannel is targeting.
+ * @see Animation
+ * @see GLTFDoc
+ */
 typedef enum { TARGET_TRANSLATION, TARGET_ROTATION, TARGET_SCALE, TARGET_WEIGHTS }AnimationPath;
 
+/**
+ * @brief Engine-side sampler version of GLTFAnimationSampler with the field allocated.
+ * @see Animation
+ * @see GLTFDoc
+ */
 typedef struct {
     // count is times, elem is values
     int count;        
@@ -2169,18 +2587,35 @@ typedef struct {
     AnimationInterpolation interpolation;
 } AnimationSampler;
 
+/**
+ * @brief The individual interpolation of an Animation.
+ * @see Animation
+ * @see GLTFDoc
+ */
 typedef struct {
     int input;  
     int output;  
     int interpolation;
 } GLTFAnimationSampler;
 
+/**
+ * @brief The channels of an Animation.
+ * @see Animation
+ * @see GLTFDoc
+ */
 typedef struct {
     int sampler;      
     int target_node;  
     AnimationPath path;
 } GLTFAnimationChannel;
 
+
+/**
+ * @brief The GLTF structure of an Animation.
+ * @see Animation
+ * @see GLTFDoc
+ */
+ 
 typedef struct {
     char name[64];
     int sampler_count;
@@ -2189,20 +2624,12 @@ typedef struct {
     GLTFAnimationChannel *channels;
 } GLTFAnimation;
 
-typedef struct {
-    
-    float time;
-    void (*fn)(void);
-    
-} AnimationEvent;
 
-typedef struct {
-
-    AnimationEvent event;
-    char name[64];
-    
-} AnimationEventDefinition;
-
+/**
+ * @brief The structure of an Skeletatal Animation loaded in from GLTFAnimation.
+ * @see GLTFAnimation
+ * @see GLTFDoc
+ */
 typedef struct {
     
     char name[256];
@@ -2215,25 +2642,41 @@ typedef struct {
 } Animation;
 
 
-#define MAX_ANIMATION_INDICES 256
+/**
+ * @brief The maximum amount of animation indices per GLTFSkin.
+ * @todo Remove this maximum or increase it.
+ */
+#define MAX_ANIMATION_INDICES 256 
+
+
+
+/**
+ * @brief The structure of an Skeletatal Animation loaded in from GLTFAnimation.
+ * @see MeshNode
+ * @see Globals
+ * @see update_skin_matrices()
+ * @see GLTFDoc
+ */
 typedef struct GLTFSkin {
     
-    char name[256];
-    bool free;
-    size_t id;
-    int joint_count;
-    int * joints;         
-    mat4 * final_mat;
-    mat4 * inverse_bind;  
-    int ibm_accessor;
-    bool is_idled;
-    int animation_indices[MAX_ANIMATION_INDICES];
-    int animation_indices_count;
-
-    int ssbo_offset;
+    char name[256];                               /**<The name of the skin from load.*/
+    bool free;                                    /**<If this skin is free.*/
+    size_t id;                                    /**<The ID of this skin in Globals.skins.*/
+    int joint_count;                              /**<The amount of joints.*/
+    int * joints;                                 /**<The joints for skeletal animating.*/
+    mat4 * final_mat;                             /**<The transformation after update_skin_matrices().*/
+    mat4 * inverse_bind;                          /**<The inverse_bind that is computed on load_gltf().*/
+    int ibm_accessor;                             /**<Which GLTFAccessor this refers to.*/
+    int animation_indices[MAX_ANIMATION_INDICES]; /**<Animation indices into Asset.*/
+    int animation_indices_count;                  /**<The amount of Animation indices.*/
+    int ssbo_offset;                              /**<The offset into ::JOINT_SSBO.*/
     
 } GLTFSkin;
 
+/**
+ * @brief The GLTFTexture before it is processed.
+ * @see GLTFDoc
+ */
 typedef struct GLTFTexture
 {
     
@@ -2242,6 +2685,10 @@ typedef struct GLTFTexture
 
 } GLTFTexture;
 
+/**
+ * @brief The Image before it is processed.
+ * @see GLTFDoc
+ */
 typedef struct GLTFImage
 {
     
@@ -2252,6 +2699,10 @@ typedef struct GLTFImage
 
 } GLTFImage;
 
+/**
+ * @brief The sampler for the Image before it is processed.
+ * @see GLTFDoc
+ */
 typedef struct GLTFSampler
 {
     
@@ -2264,6 +2715,9 @@ typedef struct GLTFSampler
     
 } GLTFSampler;
 
+/**
+ * @brief The entire GLTF after it is parsed via load_gltf().
+ */
 typedef struct {
     
     GLTFBuffer * buffers;   
@@ -2288,58 +2742,66 @@ typedef struct {
     int image_count;
     GLTFSampler * samplers;
     int sampler_count;
-
     
 } GLTFDoc;
 
+/**
+ * @brief A instance of an Asset that retains its node structure but can be duplicated into multiple instances that are independent.
+ * @see Asset
+ * @see ::ASSET_INSTANCES
+ * @see init_new_asset_instance()
+ * @warning @todo Very important: The first_skin is not actually in use and needs to be resolved to use skin_indices instead in init_new_asset_instance()
+ */
 typedef struct AssetInstance
 {
 
-    size_t id;
-    size_t first_skin;
-    size_t skin_count;
+    size_t id;             /**<The ID in ::ASSET_INSTANCES.*/
+    size_t first_skin;     /**<Refer to todo*/
+    size_t skin_count;     /**<The amount of GLTFSkin%s in this instance.*/
 
-    int asset_id;
-    int root_id;
-    size_t first_node;
-    size_t node_count;
-    size_t * node_indices;
-    size_t * skin_indices;
+    int asset_id;          /**<The Asset ID in Globals.assets.*/
+    size_t node_count;     /**<The amount of MeshNode%s in this instance.*/
+    size_t * node_indices; /**<The indices of MeshNode%s spawned from this instance inside of Globals.mesh_nodes.*/
+    size_t * skin_indices; /**<The indices of GLTFSkin%s spawned from this instance inside of Globals.skins.*/
 
-    vec3 tr;
-    vec4 rot;
-    vec3 scale;
-    mat4 model;
+    /**
+     * @name Model Matrix
+     * @brief This transform is applied before all transforms in update_scene_nodes(). It is the transform for the entire instance.
+     * @{
+     */
+    vec3 tr;               
+    vec4 rot;              
+    vec3 scale;            
+    mat4 model;            
+    /** @} */
 
-    bool free;
-    AABB aabb;
+    bool free;             /**<Indicates an empty slot in ::ASSET_INSTANCES.*/
+    AABB aabb;             /**<The AABB over each MeshNode via Asset.*/
     
 } AssetInstance;
 
 
+/**
+ * @brief An Asset after it is loaded in from file into Globals.assets. It is a template for AssetInstance%s.
+ * @see AssetInstance
+ * @see Globals.assets
+ */
 typedef struct Asset
 {
 
-    // int indices into mesh_nodes
-    char path[256];
+    char path[256];         /**<The path to the Asset.*/
+    Vector mesh_indices;    /**<int - Indices into Globals.meshes which indicate what Mesh%es are within this Asset.*/
+    MeshNode * nodes;       
+    size_t node_count;      
+    GLTFSkin * skins;       
+    size_t skin_count;      
+    Animation * animations; 
+    size_t animation_count; 
 
-    bool is_obj;
-    Vector mesh_indices;
-
-    MeshNode * nodes;
-    size_t node_count;
-    GLTFSkin * skins;
-    size_t skin_count;
-    Animation * animations;
-    size_t animation_count;
-
-    int skin_id;
-    int asset_id;
-    int root_id;
-    AABB aabb;
+    int asset_id;           /**<The ID into Globals.assets.*/
+    AABB aabb;              /**<AABB over each MeshNode for this Asset.*/
     
 } Asset;
-
 
 typedef struct InstanceData
 {
@@ -2351,7 +2813,11 @@ typedef struct InstanceData
     int skin_offset;
     
 } InstanceData;
-
+/**
+ * @brief .
+ * @see AssetInstance
+ * @see Globals.assets
+ */
 typedef struct DrawCommand
 {
 

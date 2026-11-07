@@ -1108,7 +1108,6 @@ bool subdivide_mesh_tri_bvh(Mesh * mesh, size_t * indices, int indices_count, in
     if (!can_split || axes_tried == 2)
     {
         parent = &nodes[pidx];
-        size_t first = mesh->leaf_indices.count;
         MeshFace * faces = CAST_VEC(mesh->tris, MeshFace);
 
         size_t found_indices = 0;
@@ -1143,7 +1142,6 @@ bool subdivide_mesh_tri_bvh(Mesh * mesh, size_t * indices, int indices_count, in
         return true;
     }
 
-    size_t leaf_count = mesh->leaf_indices.count;
     parent = &nodes[pidx];
     
 
@@ -1185,7 +1183,6 @@ void init_mesh_tri_bvh(Mesh * mesh)
 {
 
     init_vector(&mesh->nodes, 0, sizeof(BVHNode));
-    init_vector(&mesh->leaf_indices, 0, sizeof(size_t));
 
     BVHNode * root = vector_expand(&mesh->nodes, 1);
 

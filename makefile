@@ -14,7 +14,7 @@ LDFLAGS = -lmingw32 -lSDL2main -lSDL2 -lopengl32 -lglew32 -lfftw3f-3
 # else
     MKDIR_BUILD = mkdir -p build
     MKDIR_BIN = mkdir -p bin
-    RM_CMD = rm -rf build bin
+    RM_CMD = rm -rf build
 # endif
 
 rwildcard = $(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))

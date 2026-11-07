@@ -1088,7 +1088,7 @@ bool update_leg(LegIK * leg, LegIK * other_leg, vec3 tr, vec3 vel)
 
 // From Perlin's 2 joint IK implementation
 float moving_offset = 0;
-bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos )
+bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos)
 {
 
     vec3 HIP_POS = hip_pos;
@@ -1116,8 +1116,6 @@ bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos )
 
     *P = vec3_add(*P, HIP_POS);
     *Q = vec3_add(*Q, HIP_POS);
-
-    
 
     return (d > 0 && d < A);
     
@@ -1177,8 +1175,6 @@ void calculate_camera_angles(Camera * cam, Spring* s, vec3 input_acceleration, f
 void update_skeleton(Skeleton * s, Camera * cam, vec3 vel)
 {
 
-    
-
     mat3 rot;
     rot.a0 = cam->forward.x;
     rot.a1 = cam->forward.y;
@@ -1213,12 +1209,10 @@ void update_skeleton(Skeleton * s, Camera * cam, vec3 vel)
     bool solved = solve_Q(&player.skeleton, D, &s->q_left, &s->p_left, s->left_hip_pos);
     bool solved2 = solve_Q(&player.skeleton, D, &s->q_right, &s->p_right, s->right_hip_pos);
 
-
     float leg_length = player.skeleton.hip_height * 0.95f;
 
     float left_length;
     float right_length;
-
 
     left_length = vec3_length(vec3_sub(s->p_left, s->left_hip_pos));
     right_length = vec3_length(vec3_sub(s->p_right, s->right_hip_pos));
@@ -1240,14 +1234,12 @@ void update_skeleton(Skeleton * s, Camera * cam, vec3 vel)
     s->pelvis.target.z = MAX(s->pelvis.target.z, base_pos.z);
     update_spring(&s->pelvis);
     
-
     float pelvis_drop_delta = (base_pos.z + s->pelvis_height) - s->pelvis.pos.z;
     vec3 neck_target = s->pelvis.pos;
     neck_target.z += s->neck_pelvis_diff + (pelvis_drop_delta * 0.5f);
     s->neck.target = neck_target;
     update_spring(&s->neck);
-
-    
+   
     vec3 current_accel;
     current_accel.x = (player.pc->vel.x - player.pc->old_vel.x) / dt;
     current_accel.y = (player.pc->vel.y - player.pc->old_vel.y) / dt;

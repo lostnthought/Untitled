@@ -13,6 +13,5 @@ void incremental_hull(ConvexHull * hull);
 void mesh_decomposition(Mesh * mesh);
 
 void compute_mesh_hulls(ConvexHull * hull);
-void init_mesh(const char * asset_name, const char * mesh_name, bool is_static);
 
 #endif

@@ -483,10 +483,9 @@ void destroy_asset_instance(uint32_t id);
 void init_default_textures();
 Material * init_new_material(const char * filename);
 Mesh * retrieve_mesh_by_name(const char * asset_name, const char * mesh_name);
-void init_mesh_new(Mesh * mesh);
+void init_mesh(Mesh * mesh);
 void allocate_gbuffer_msaa();
 void allocate_gbuffer();
-void init_mesh(const char * asset_name, const char * mesh_name, bool is_static);
 bool init(SDL_Window **window, SDL_GLContext *context);
 
 #endif

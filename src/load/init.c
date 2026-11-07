@@ -65,7 +65,7 @@ Material * init_new_material(const char * filename)
     mat->name[127] = '\0';
     return mat;
 }
-void init_mesh_new(Mesh * mesh)
+void init_mesh(Mesh * mesh)
 {
 
     
@@ -73,8 +73,6 @@ void init_mesh_new(Mesh * mesh)
     mesh->tri_adjacency = NULL;
     mesh->nodes.buffer = NULL;
     mesh->tri_aabbs.buffer = NULL;
-    mesh->leaf_indices.buffer = NULL;
-    mesh->tri_adjacency = NULL;
     mesh->bvh_indices = NULL;
     ConvexHull * hull = vector_expand(&mesh->hulls, 1);
     hull->vertices.buffer = NULL;
@@ -319,7 +317,6 @@ AssetInstance * init_new_asset_instance(const char * asset_name, vec3 tr, vec4 r
         {
             instance = &ASSET_INSTANCES[i];
             instance->free = false;
-            instance->root_id = asset->root_id;
             instance->node_count = asset->node_count;
             instance->skin_count = asset->skin_count;
             break;
@@ -328,7 +325,6 @@ AssetInstance * init_new_asset_instance(const char * asset_name, vec3 tr, vec4 r
     }
     if (instance == NULL) return NULL;
 
-    instance->first_node = GLOBALS.mesh_nodes.count;
     instance->first_skin = GLOBALS.skins.count;
     instance->aabb = asset->aabb;
     instance->node_indices = malloc(sizeof(size_t) * instance->node_count);
@@ -348,14 +344,6 @@ AssetInstance * init_new_asset_instance(const char * asset_name, vec3 tr, vec4 r
         mn->local_id = asset->nodes[i].id;
         instance->node_indices[i] = mn->id;
         
-        if (mn->parent == -1)
-        {
-            mn->root = true;
-        }
-        else
-        {
-            mn->root = false;
-        }
         mn->ent = NULL;
         mn->pc = NULL;
         mn->asset_instance = instance->id;
@@ -364,6 +352,7 @@ AssetInstance * init_new_asset_instance(const char * asset_name, vec3 tr, vec4 r
         strcpy(mn->name, asset->nodes[i].name);
         if (mn->skin != -1)
         {
+            
             
             mn->skin += instance->first_skin;
         }
@@ -966,7 +955,6 @@ bool init_globals()
     GLOBALS.scene_data.light_bvh.lights.buffer = NULL;
     GLOBALS.lights_dirty = true;
     EDITOR_SETTINGS.SELMODE = SELMODE_LIGHT;
-    GLOBALS.scene_data.lightmap_data.buffer = NULL;
     init_vector(&GLOBALS.scene_data.lightmap_data.islands, 0, sizeof(UVIsland));
     init_vector(&GLOBALS.scene_data.reflection_probes, 0, sizeof(ReflectionProbe));
     init_vector(&GLOBALS.scene_data.audio_probe_volumes, 0, sizeof(ProbeVolume));

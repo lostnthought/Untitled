@@ -1618,10 +1618,8 @@ void load_gltf(const char *gltfPath)
 
 
     strcpy(asset->path, gltfPath);
-    asset->root_id = root;
     asset->asset_id = GLOBALS.assets.count-1;
     MeshNode * root_node = &doc.nodes[root];
-    asset->skin_id = root_node->skin;
 
 
     meshes = CAST_VEC(GLOBALS.meshes, Mesh);
@@ -1646,7 +1644,7 @@ void load_gltf(const char *gltfPath)
     {
         
         Mesh * m = &meshes[i];
-        init_mesh_new(m);
+        init_mesh(m);
         if (asset->aabb.min_x > m->aabb.min_x) asset->aabb.min_x = m->aabb.min_x;
         if (asset->aabb.min_y > m->aabb.min_y) asset->aabb.min_y = m->aabb.min_y;
         if (asset->aabb.min_z > m->aabb.min_z) asset->aabb.min_z = m->aabb.min_z;

@@ -424,7 +424,6 @@ void write_mesh_node(MeshNode * mn, FILE * f)
     fwrite(mn->children, sizeof(int), mn->child_count, f);
 
     fwrite(&mn->static_mesh, sizeof(bool), 1, f);
-    fwrite(&mn->root, sizeof(bool), 1, f);
     fwrite(&mn->physics_mode, sizeof(bool), 1, f);
 
     fwrite(&mn->skip_directional_uv_lighting, sizeof(bool), 1, f);
@@ -764,8 +763,6 @@ void scene_save(const char * name)
             fwrite(&m->tri_aabbs.count, sizeof(size_t), 1, f);
             if (m->tri_aabbs.buffer) fwrite(m->tri_aabbs.buffer, sizeof(AABB), m->tri_aabbs.count, f);
 
-            fwrite(&m->leaf_indices.count, sizeof(size_t), 1, f);
-            if (m->leaf_indices.buffer) fwrite(m->leaf_indices.buffer, sizeof(size_t), m->leaf_indices.count, f);
             if (m->bvh_indices) fwrite(m->bvh_indices, sizeof(size_t), m->tris.count, f);
 
         }
@@ -806,7 +803,6 @@ void scene_save(const char * name)
         Asset * asset = &assets[i];
 
         fwrite(asset->path, sizeof(char), 256, f);
-        fwrite(&asset->is_obj, sizeof(bool), 1, f);
 
         fwrite(&asset->mesh_indices.count, sizeof(size_t), 1, f);
         if (asset->mesh_indices.buffer) fwrite(asset->mesh_indices.buffer, sizeof(int), asset->mesh_indices.count, f);
@@ -852,9 +848,7 @@ void scene_save(const char * name)
             
         }
 
-        fwrite(&asset->skin_id, sizeof(int), 1, f);
         fwrite(&asset->asset_id, sizeof(int), 1, f);
-        fwrite(&asset->root_id, sizeof(int), 1, f);
         fwrite(&asset->aabb, sizeof(AABB), 1, f);
 
     }
@@ -875,9 +869,7 @@ void scene_save(const char * name)
         fwrite(&ai->skin_count, sizeof(size_t), 1, f);
 
         fwrite(&ai->asset_id, sizeof(int), 1, f);
-        fwrite(&ai->root_id, sizeof(int), 1, f);
 
-        fwrite(&ai->first_node, sizeof(size_t), 1, f);
         fwrite(&ai->node_count, sizeof(size_t), 1, f);
 
         fwrite(&ai->aabb, sizeof(AABB), 1, f);
@@ -954,7 +946,6 @@ void scene_save(const char * name)
         fwrite(&pc->inverse_inertia, sizeof(mat3), 1, f);
         fwrite(&pc->inverse_world, sizeof(mat3), 1, f);
 
-        fwrite(&pc->corrected_position, sizeof(vec3), 1, f);
 
         fwrite(&pc->aabb, sizeof(AABB), 1, f);
 
@@ -1127,7 +1118,6 @@ void read_mesh_node(MeshNode * mn, FILE * f)
     fread(mn->children, sizeof(int), mn->child_count, f);
 
     fread(&mn->static_mesh, sizeof(bool), 1, f);
-    fread(&mn->root, sizeof(bool), 1, f);
     fread(&mn->physics_mode, sizeof(bool), 1, f);
 
     fread(&mn->skip_directional_uv_lighting, sizeof(bool), 1, f);
@@ -1636,7 +1626,6 @@ void scene_load(const char * name)
             if (m->vertices.buffer) free(m->vertices.buffer);
             if (m->tris.buffer) free(m->tris.buffer);
             if (m->tri_aabbs.buffer) free(m->tri_aabbs.buffer);
-            if (m->leaf_indices.buffer) free(m->leaf_indices.buffer);
             if (m->tri_adjacency)
             {
                 for (int j = 0; j < m->tris.count; j++)
@@ -1847,9 +1836,6 @@ void scene_load(const char * name)
             m->tri_aabbs.buffer = NULL;
             read_vector(&m->tri_aabbs, sizeof(AABB), f);
 
-            m->leaf_indices.buffer = NULL;
-            read_vector(&m->leaf_indices, sizeof(size_t), f);
-
             m->bvh_indices = malloc(sizeof(size_t) * m->tris.count);
 
             fread(m->bvh_indices, sizeof(size_t), m->tris.count, f);
@@ -1859,7 +1845,6 @@ void scene_load(const char * name)
         {
             init_vector(&m->nodes, 0, sizeof(BVHNode));
             init_vector(&m->tri_aabbs, 0, sizeof(AABB));
-            init_vector(&m->leaf_indices, 0, sizeof(size_t));
             m->bvh_indices = NULL;
         }
 
@@ -2014,7 +1999,6 @@ void scene_load(const char * name)
         Asset * asset = &assets[i];
 
         fread(asset->path, sizeof(char), 256, f);
-        fread(&asset->is_obj, sizeof(bool), 1, f);
 
         fread(&asset->mesh_indices.count, sizeof(size_t), 1, f);
         if (asset->mesh_indices.count > 0)
@@ -2131,9 +2115,7 @@ void scene_load(const char * name)
             asset->animations = NULL;
         }
 
-        fread(&asset->skin_id, sizeof(int), 1, f);
         fread(&asset->asset_id, sizeof(int), 1, f);
-        fread(&asset->root_id, sizeof(int), 1, f);
         fread(&asset->aabb, sizeof(AABB), 1, f);
 
     }
@@ -2154,9 +2136,7 @@ void scene_load(const char * name)
         fread(&ai->skin_count, sizeof(size_t), 1, f);
 
         fread(&ai->asset_id, sizeof(int), 1, f);
-        fread(&ai->root_id, sizeof(int), 1, f);
 
-        fread(&ai->first_node, sizeof(size_t), 1, f);
         fread(&ai->node_count, sizeof(size_t), 1, f);
 
         fread(&ai->aabb, sizeof(AABB), 1, f);
@@ -2225,7 +2205,6 @@ void scene_load(const char * name)
         fread(&pc->inverse_inertia, sizeof(mat3), 1, f);
         fread(&pc->inverse_world, sizeof(mat3), 1, f);
 
-        fread(&pc->corrected_position, sizeof(vec3), 1, f);
 
         fread(&pc->aabb, sizeof(AABB), 1, f);
 
