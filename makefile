@@ -32,7 +32,7 @@ TARGET = bin/engine
 make: $(TARGET)
 
 docs:
-	doxygen Doxyfile	
+	doxygen ./doxygen/Doxyfile	
 
 clean-docs:
 	rm -rf docs
