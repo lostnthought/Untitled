@@ -1,10 +1,12 @@
 
 #include "utilities/types.h"
 #include "load/init.h"
-// #include "./libmysofa-1.3.5/src/hrtf/mysofa.h"
 #include "utilities/mathf.h"
 
 
+static void allocate_audio_scratch_hrtf(int hrtf_length);
+static void update_player_ir(PartitionTable * OUT);
+static int SDLCALL hrtf_worker(void * params);
 
 void evaluate_sh(vec3 dir, float SH[SH_MAX])
 {
@@ -21,27 +23,8 @@ void evaluate_sh(vec3 dir, float SH[SH_MAX])
 
 }
 
-#define DEGREES_TO_RAD (3.14159265358979323846 / 180.0)
-vec3 spherical_to_cartesian(float azimuth_deg, float elevation_deg, float radius) {
-    
-    float azimuth_rad = azimuth_deg * DEGREES_TO_RAD;
-    float elevation_rad = elevation_deg * DEGREES_TO_RAD;
 
-    float projected_rad = radius * cosf(elevation_rad);
-
-    vec3 pos =
-        {
-            -projected_rad * sinf(azimuth_rad),
-            radius * sinf(elevation_rad),
-            -projected_rad * cosf(azimuth_rad)
-
-        };
-
-
-    return pos;
-}
-
-void allocate_audio_scratch_hrtf(int hrtf_length)
+static void allocate_audio_scratch_hrtf(int hrtf_length)
 {
     
     HRTF_LENGTH = hrtf_length;
@@ -83,23 +66,6 @@ void allocate_audio_scratch_hrtf(int hrtf_length)
     AUDIO_SCRATCH.static_fwd_plan = fftwf_plan_dft_r2c_1d(padded_len, NULL, NULL, FFTW_ESTIMATE);
     AUDIO_SCRATCH.IR_fwd_plan = fftwf_plan_dft_r2c_1d(padded_len, NULL, NULL, FFTW_ESTIMATE);
     AUDIO_SCRATCH.IR_bwd_plan = fftwf_plan_dft_c2r_1d(padded_len, NULL, NULL, FFTW_ESTIMATE);
-}
-void save_hrtf_to_binary(const char * filename)
-{
-    FILE * f = fopen(filename, "wb");
-    if (!f) return;
-
-    fwrite(&HRTF_LENGTH, sizeof(int), 1, f);
-    
-    for (int i = 0; i < SH_MAX; i++)
-    {
-        fwrite(AUDIO_SCRATCH.STATIC_HRTF_L[i], sizeof(float), AUDIO_SCRATCH.ir_len, f);
-        fwrite(AUDIO_SCRATCH.STATIC_HRTF_R[i], sizeof(float), AUDIO_SCRATCH.ir_len, f);
-        fwrite(AUDIO_SCRATCH.STATIC_HRTF_L_FWD[i], sizeof(fftwf_complex), AUDIO_SCRATCH.complex_ir_len, f);
-        fwrite(AUDIO_SCRATCH.STATIC_HRTF_R_FWD[i], sizeof(fftwf_complex), AUDIO_SCRATCH.complex_ir_len, f);
-    }
-    
-    if (f) fclose(f);
 }
 
 void load_hrtf_from_binary(const char * filename)
@@ -286,7 +252,7 @@ void rotate_sh(float * OUT, float SH[SH_MAX], mat3 rot)
     OUT[8] = d4 * s_scale_dst4;    
 }
 
-void update_player_ir(PartitionTable * OUT)
+static void update_player_ir(PartitionTable * OUT)
 {
 
 
@@ -410,6 +376,7 @@ void update_player_ir(PartitionTable * OUT)
     }
    
 }
+
 static int SDLCALL hrtf_worker(void * params)
 {
 

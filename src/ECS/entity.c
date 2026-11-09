@@ -15,6 +15,9 @@ State STATE_REGISTRY[MAX_ENTITY_STATES];
 int STATE_COUNT = 0;
 
 
+static State * find_state_by_name(const char * name);
+static State * find_default_state(const char * name);
+
 typedef void (*func_ptr_t)(void*);
 
 void STATES_INIT()
@@ -30,7 +33,7 @@ void STATES_INIT()
     
 }
 
-State * find_state_by_name(const char * name)
+static State * find_state_by_name(const char * name)
 {
 
     for (int i = 0; i < STATE_COUNT; i++)
@@ -45,7 +48,7 @@ State * find_state_by_name(const char * name)
 }
 
 
-State * find_default_state(const char * name)
+static State * find_default_state(const char * name)
 {
 
     char default_name[256];

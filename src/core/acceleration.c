@@ -12,8 +12,17 @@
 
 #define MIN_LEAF_AMT 4
 
+static void swap_size_t(size_t * a, size_t * b);
+static void assign_next_nodes(BVHNode * nodes, int index, int next);
+static bool BVH_slab_test_aabb(RayHit * hit, AABB aabb, vec3 origin, vec3 dir, vec3 inv_dir);
+static void ray_traverse_mesh_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal);
+static bool ray_traverse_scene_bvh(SceneData * sd, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal);
+static bool process_collision_node(Mesh * m, MeshNode * mn, BVHNode * node, vec3 proposed, CollisionPoints * p);
+static bool subdivide_scene_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, int pidx, int depth, int axes_tried);
+static bool subdivide_mesh_tri_bvh(Mesh * mesh, size_t * indices, int indices_count, int pidx, int depth, int axes_tried);
+static bool subdivide_light_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, Light * lights, int pidx, int depth, int axes_tried);
 
-void swap_size_t(size_t * a, size_t * b)
+static void swap_size_t(size_t * a, size_t * b)
 {
     size_t c = *a;
     *a = *b;
@@ -22,7 +31,7 @@ void swap_size_t(size_t * a, size_t * b)
 
 
 
-void assign_next_nodes(BVHNode * nodes, int index, int next)
+static void assign_next_nodes(BVHNode * nodes, int index, int next)
 {
 
     BVHNode * node = &nodes[index];
@@ -38,7 +47,7 @@ void assign_next_nodes(BVHNode * nodes, int index, int next)
 }
 
 
-bool BVH_slab_test_aabb(RayHit * hit, AABB aabb, vec3 origin, vec3 dir, vec3 inv_dir)
+static bool BVH_slab_test_aabb(RayHit * hit, AABB aabb, vec3 origin, vec3 dir, vec3 inv_dir)
 {
     
     float tx1 = (aabb.min_x - origin.x) * inv_dir.x;
@@ -203,7 +212,7 @@ bool ray_intersects_obb_with_point(OBB obb, vec3 origin, vec3 dir, vec3 * inters
 
 
 
-void ray_traverse_mesh_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
+static void ray_traverse_mesh_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
 {
 
     int ni = 0;
@@ -277,7 +286,7 @@ void ray_traverse_mesh_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, vec3 origin
 }
 
 
-bool ray_traverse_scene_bvh(SceneData * sd, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
+static bool ray_traverse_scene_bvh(SceneData * sd, BVHNode * nodes, vec3 origin, vec3 inv_pos, vec3 dir, vec3 mod_dir, vec3 inv_dir, RayHit * hit, size_t mesh, size_t tri, bool check_normal)
 {
 
     int ni = 0;
@@ -375,39 +384,7 @@ RayHit raycast_scene(vec3 start, vec3 dir, float initial_t, bool check_normal)
 
 
 
-bool ray_intersects_collision_aabb(AABB aabb, vec3 origin, vec3 end, vec3 dir, vec3 inv_dir)
-{
-    float dist = vec3_length(vec3_sub(end, origin));
-    
-    float tx1 = (aabb.min_x - origin.x) * inv_dir.x;
-    float tx2 = (aabb.max_x - origin.x) * inv_dir.x;
-    float ty1 = (aabb.min_y - origin.y) * inv_dir.y;
-    float ty2 = (aabb.max_y - origin.y) * inv_dir.y;
-    float tz1 = (aabb.min_z - origin.z) * inv_dir.z;
-    float tz2 = (aabb.max_z - origin.z) * inv_dir.z;
-    float txmin = fminf(tx1, tx2);
-    float txmax = fmaxf(tx1, tx2);
-    float tymin = fminf(ty1, ty2);
-    float tymax = fmaxf(ty1, ty2);
-    float tzmin = fminf(tz1, tz2);
-    float tzmax = fmaxf(tz1, tz2);
-
-    float t_enter = fmaxf(txmin, fmaxf(tymin, tzmin));            
-
-    float t_exit = fminf(txmax, fminf(tymax, tzmax));
-
-    if (t_enter > t_exit) return false;
-    if (t_exit < 0) return false;
-
-    return true;
-}
-
-
-
-
-
-
-bool process_collision_node(Mesh * m, MeshNode * mn, BVHNode * node, vec3 proposed, CollisionPoints * p)
+static bool process_collision_node(Mesh * m, MeshNode * mn, BVHNode * node, vec3 proposed, CollisionPoints * p)
 {
     
     MeshFace * fs = CAST_VEC(m->tris, MeshFace);
@@ -500,7 +477,7 @@ bool traverse_collision_bvh(Mesh * m, MeshNode * mn, BVHNode * nodes, BVHNode * 
 
 
 
-bool subdivide_scene_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, int pidx, int depth, int axes_tried)
+static bool subdivide_scene_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, int pidx, int depth, int axes_tried)
 {
     
 
@@ -874,7 +851,7 @@ void init_scene_bvh()
 
 
 
-bool subdivide_mesh_tri_bvh(Mesh * mesh, size_t * indices, int indices_count, int pidx, int depth, int axes_tried)
+static bool subdivide_mesh_tri_bvh(Mesh * mesh, size_t * indices, int indices_count, int pidx, int depth, int axes_tried)
 {
     
     BVHNode * nodes = CAST_VEC(mesh->nodes, BVHNode);
@@ -1224,7 +1201,7 @@ void init_mesh_tri_bvh(Mesh * mesh)
 }
 
 
-bool subdivide_light_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, Light * lights, int pidx, int depth, int axes_tried)
+static bool subdivide_light_bvh(Vector * bvh_nodes, size_t * indices, AABB * aabbs, Light * lights, int pidx, int depth, int axes_tried)
 {
     
 

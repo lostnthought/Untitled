@@ -10,7 +10,6 @@
 #include "core/engine_types.h"
 #include "core/acceleration.h"
 #include "utilities/engine_utilities.h"
-// #include "./libmysofa-1.3.5/src/hrtf/mysofa.h"
 #include "fftw3.h"
 #include <math.h>
 #include "audio/audio_ir.h"
@@ -22,6 +21,34 @@
 
 float BAND_IMPULSES[AUDIO_NUM_BANDS][AUDIO_KERNEL_SIZE];
 
+
+
+static void heap_swap(OpenNode *a, OpenNode *b);
+static void heap_push(Vector * h);
+static OpenNode heap_pop(Vector *h);
+static void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end);
+static int a_star_aportal(AStarWorkspace * WS, int start, int end);
+static float calculate_path_volume_equal_power(float path_distance, float min_distance, float max_distance);
+static bool pathfind_audio_occlusion(vec3 listener_pos, int closest_l, vec3 emitter_pos, vec3 * out_pos, float * out_volume, float * distance);
+// static void update_lpf_sound(AudioEmitter * emitter, bool occluded);
+static vec3 pos_to_pv_local(OBB *obb, vec3 pos);
+static int query_probe_volume(vec3 pos);
+static void remove_audio_pv(APV * apv, bool * apb);
+static void load_audio_pv(APV * apv, ProbeVolume * pv);
+// static vec3 probe_world_position(ProbeVolume * pv, int x, int y, int z);
+static void interpolate_nearest_aprobes(vec3 pos, AudioProbeWeights * out_w);
+static float process_biquad(Biquad* filter, float in_sample) ;
+static void init_bandpass(Biquad * filter, float sample_rate, float center_freq, float q);
+static void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioProbe * probe, float rms);
+static void compute_schroeder_edc(float* energy_histogram, float* edc_out);
+static float extract_rms(AudioProbe * probe, int fade_start, int window_size);
+static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_duration_seconds, int last_sample);
+static void process_probe_chunk(int start, int count, GLuint aprobe_ssbo);
+
+#define SAMPLE_IDX(i, sh, b) \
+    (((i) * SH_MAX * AUDIO_NUM_BANDS) + ((sh) * AUDIO_NUM_BANDS) + (b)) \
+
+#define Y_00 0.28209479177387814f
 
 
 void recalculate_audio_portal_paths()
@@ -151,7 +178,7 @@ static OpenNode heap_pop(Vector *h) {
 }
 
 
-void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end)
+static void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end)
 {
 
     
@@ -187,7 +214,7 @@ void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end)
 
 
 
-int a_star_aportal(AStarWorkspace * WS, int start, int end)
+static int a_star_aportal(AStarWorkspace * WS, int start, int end)
 {
 
 
@@ -259,22 +286,9 @@ int a_star_aportal(AStarWorkspace * WS, int start, int end)
 }
 
 
-float calculate_path_volume_inverse(float path_distance, float min_distance, float max_distance, float rolloff) {
-    if (path_distance <= min_distance) {
-        return 1.0f;
-    }
-    if (path_distance >= max_distance) {
-        return 0.0f;
-    }
-
-    float gain = min_distance / (min_distance + rolloff * (path_distance - min_distance));
-
-    float fade = 1.0f - ((path_distance - min_distance) / (max_distance - min_distance));
-    return gain * fade;
-}
 
 
-float calculate_path_volume_equal_power(float path_distance, float min_distance, float max_distance) {
+static float calculate_path_volume_equal_power(float path_distance, float min_distance, float max_distance) {
     if (path_distance <= min_distance) return 1.0f;
     if (path_distance >= max_distance) return 0.0f;
 
@@ -284,19 +298,8 @@ float calculate_path_volume_equal_power(float path_distance, float min_distance,
     return linear_factor * linear_factor; 
 }
 
-float calculate_portal_path_volume(const float *path_nodes_dist, int node_count, float total_path_distance, float min_dist, float max_dist) {
-    float distance_volume = calculate_path_volume_equal_power(total_path_distance, min_dist, max_dist);
 
-    float portal_transmission = 1.0f;
-    for (int i = 0; i < node_count - 1; i++) {
-        float portal_openness = 1.0f;
-        portal_transmission *= (0.2f + 0.8f * portal_openness); 
-    }
-
-    return distance_volume * portal_transmission;
-}
-
-bool pathfind_audio_occlusion(vec3 listener_pos, int closest_l, vec3 emitter_pos, vec3 * out_pos, float * out_volume, float * distance)
+static bool pathfind_audio_occlusion(vec3 listener_pos, int closest_l, vec3 emitter_pos, vec3 * out_pos, float * out_volume, float * distance)
 {
 
 
@@ -431,23 +434,23 @@ void load_emitter(AudioEmitter * emitter, const char* filepath, bool is_loop, bo
 }
 
 
-void update_lpf_sound(AudioEmitter * emitter, bool occluded)
-{
-    float cutoff = occluded ? 350.0f : 20000.0f;
+// static void update_lpf_sound(AudioEmitter * emitter, bool occluded)
+// {
+//     float cutoff = occluded ? 350.0f : 20000.0f;
     
-    emitter->current_cutoff += (cutoff - emitter->current_cutoff) * 10.0f * dt;
+//     emitter->current_cutoff += (cutoff - emitter->current_cutoff) * 10.0f * dt;
 
 
-    ma_lpf_config filterUpdate = ma_lpf_config_init(
-        emitter->lpf_node.lpf.format,    
-        emitter->lpf_node.lpf.channels,   
-        emitter->lpf_node.lpf.sampleRate, 
-        emitter->current_cutoff,        
-        LPF_ORDER
-    );
+//     ma_lpf_config filterUpdate = ma_lpf_config_init(
+//         emitter->lpf_node.lpf.format,    
+//         emitter->lpf_node.lpf.channels,   
+//         emitter->lpf_node.lpf.sampleRate, 
+//         emitter->current_cutoff,        
+//         LPF_ORDER
+//     );
     
-    ma_result result = ma_lpf_node_reinit(&filterUpdate, &emitter->lpf_node);
-}
+//     ma_result result = ma_lpf_node_reinit(&filterUpdate, &emitter->lpf_node);
+// }
 
 AudioEmitter * init_emitter(const char * filepath, bool is_loop, bool is_occludable, float base_volume)
 {
@@ -472,7 +475,6 @@ void unload_emitter(int id)
     AudioEmitter * e = &AUDIO_EMITTERS[id];
     ma_sound_uninit(&e->sound_obj);
     e->is_loaded = false;
-
 
     
 }
@@ -556,7 +558,7 @@ void SDLAudioCallback(void* pUserData, Uint8* pStream, int len) {
 
 
 
-vec3 pos_to_pv_local(OBB *obb, vec3 pos)
+static vec3 pos_to_pv_local(OBB *obb, vec3 pos)
 {
     
     vec3 local_pos = vec3_sub(pos, obb->center);
@@ -565,7 +567,7 @@ vec3 pos_to_pv_local(OBB *obb, vec3 pos)
     return vec3_add(norm, (vec3){0.5f, 0.5f, 0.5f});
 }
 
-int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local)
+static int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local)
 {
     
     vec3 pv_local = pos_to_pv_local(&pv->obb, pos);
@@ -574,7 +576,7 @@ int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local)
     return pv_index.z * pv->resolution.y * pv->resolution.x + pv_index.y * pv->resolution.x + pv_index.x;
 }
 
-int query_probe_volume(vec3 pos)
+static int query_probe_volume(vec3 pos)
 {
     ProbeVolume * pvs = CAST_VEC(GLOBALS.scene_data.audio_probe_volumes, ProbeVolume);
 
@@ -589,7 +591,7 @@ int query_probe_volume(vec3 pos)
     return -1;
 }
 
-void remove_audio_pv(APV * apv, bool * apb)
+static void remove_audio_pv(APV * apv, bool * apb)
 {
     if (apv->audio_probes)
     {
@@ -608,7 +610,7 @@ void reset_audio_pvs()
     }
 }
 
-void load_audio_pv(APV * apv, ProbeVolume * pv)
+static void load_audio_pv(APV * apv, ProbeVolume * pv)
 {
     
     fseek(GLOBALS.scene_data.APV_FILE, pv->byte_offset, SEEK_SET);
@@ -706,32 +708,35 @@ void check_audio_pv()
 
 
 
-vec3 probe_world_position(ProbeVolume * pv, int x, int y, int z)
-{
+/*
+ * @todo Clean up the probe_world_position replacement
+ */
+// static vec3 probe_world_position(ProbeVolume * pv, int x, int y, int z)
+// {
 
-    float fx = (x / (float)(pv->resolution.x - 1)) - 0.5f;
-    float fy = (y / (float)(pv->resolution.y - 1)) - 0.5f;
-    float fz = (z / (float)(pv->resolution.z - 1)) - 0.5f;
+//     float fx = (x / (float)(pv->resolution.x - 1)) - 0.5f;
+//     float fy = (y / (float)(pv->resolution.y - 1)) - 0.5f;
+//     float fz = (z / (float)(pv->resolution.z - 1)) - 0.5f;
 
-    vec3 local_pos;
-    local_pos.x = fx * (pv->obb.extents.x * 2.0f);
-    local_pos.y = fy * (pv->obb.extents.y * 2.0f);
-    local_pos.z = fz * (pv->obb.extents.z * 2.0f);
+//     vec3 local_pos;
+//     local_pos.x = fx * (pv->obb.extents.x * 2.0f);
+//     local_pos.y = fy * (pv->obb.extents.y * 2.0f);
+//     local_pos.z = fz * (pv->obb.extents.z * 2.0f);
     
-    vec3 fwd; vec3 right; vec3 up;
-    OBB_vectors(pv->obb.rot, &fwd, &right, &up);
+//     vec3 fwd; vec3 right; vec3 up;
+//     OBB_vectors(pv->obb.rot, &fwd, &right, &up);
 
-    vec3 world_pos = vec3_add(pv->obb.center, 
-    vec3_add(vec3_scale(fwd, local_pos.x),
-    vec3_add(vec3_scale(right, local_pos.y),
-    vec3_scale(up, local_pos.z))));
+//     vec3 world_pos = vec3_add(pv->obb.center, 
+//     vec3_add(vec3_scale(fwd, local_pos.x),
+//     vec3_add(vec3_scale(right, local_pos.y),
+//     vec3_scale(up, local_pos.z))));
 
-    return world_pos;
+//     return world_pos;
     
-}
+// }
 
 
-void interpolate_nearest_aprobes(vec3 pos, AudioProbeWeights * out_w)
+static void interpolate_nearest_aprobes(vec3 pos, AudioProbeWeights * out_w)
 {
 
     AudioProbeWeights weights;
@@ -865,7 +870,7 @@ void update_player_audio_probe()
 }
 
 
-float process_biquad(Biquad* filter, float in_sample) 
+static float process_biquad(Biquad* filter, float in_sample) 
 {
     float out_sample = (filter->b0 * in_sample 
                       + filter->b1 * filter->x1 
@@ -882,7 +887,7 @@ float process_biquad(Biquad* filter, float in_sample)
 }
 
 
-void init_bandpass(Biquad * filter, float sample_rate, float center_freq, float q)
+static void init_bandpass(Biquad * filter, float sample_rate, float center_freq, float q)
 {
 
     memset(filter, 0, sizeof(Biquad));
@@ -899,7 +904,7 @@ void init_bandpass(Biquad * filter, float sample_rate, float center_freq, float 
     
 }
 
-void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioProbe * probe, float rms) 
+static void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioProbe * probe, float rms) 
 {
 
     Biquad filter[AUDIO_NUM_BANDS] = {0};
@@ -948,7 +953,7 @@ void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioProbe * 
 
 
 // dont need bins since we have no bins so we can just do 1 * sample
-void compute_schroeder_edc(float* energy_histogram, float* edc_out) {
+static void compute_schroeder_edc(float* energy_histogram, float* edc_out) {
 
     float accumulated_energy = 0.0f;
     
@@ -978,7 +983,7 @@ void compute_schroeder_edc(float* energy_histogram, float* edc_out) {
 }
 
 
-float extract_rms(AudioProbe * probe, int fade_start, int window_size)
+static float extract_rms(AudioProbe * probe, int fade_start, int window_size)
 {
 
     int start = fade_start - window_size;
@@ -999,7 +1004,7 @@ float extract_rms(AudioProbe * probe, int fade_start, int window_size)
 
 
 
-void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_duration_seconds, int last_sample) {
+static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_duration_seconds, int last_sample) {
 
     int start_idx = -1;
     int end_idx = -1;
@@ -1045,14 +1050,8 @@ void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_duratio
     
 }
 
-#define SAMPLE_IDX(i, sh, b) \
-    (((i) * SH_MAX * AUDIO_NUM_BANDS) + ((sh) * AUDIO_NUM_BANDS) + (b)) \
 
-
-
-#define Y_00 0.28209479177387814f
-
-void process_probe_chunk(int start, int count, GLuint aprobe_ssbo)
+static void process_probe_chunk(int start, int count, GLuint aprobe_ssbo)
 {
 
     int MAX_SAMPLES_PER_PROBE = EDITOR_SETTINGS.audio_probe_iterations * EDITOR_SETTINGS.audio_probe_bounces;

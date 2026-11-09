@@ -19,6 +19,11 @@
 // // hull_normal = the collision normal pointing FROM the hull TO the capsule.
 // // hull_plane_dist = the dot product of a point on the hull face and the normal.
 
+/**
+ * @brief The structures, functions, constants, and variables within the physics system.
+ * @addtogroup physics_group 
+ * @{
+ */
 void
     PC_apply_velocity
     (
@@ -508,7 +513,6 @@ Manifold * create_new_manifold(PhysicsComponent * a, int mn0, PhysicsComponent *
 
 
 
-vec3 DEBUG_POINT;
 
 bool PC_process_collision_node(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * node, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, Manifold * manifold)
 {
@@ -1231,7 +1235,7 @@ void player_resolve_impulse(PhysicsComponent * pcA, PhysicsComponent * pcB, Coll
     
 }
 
-void PC_resolve_impulse_static(PhysicsComponent * pcA, CollisionPoints * p, int contact)
+void PC_resolve_impulse_static(PhysicsComponent * pcA, CollisionPoints * p)
 {
 
     MeshNode * mns = CAST_VEC(GLOBALS.mesh_nodes, MeshNode);
@@ -1753,11 +1757,11 @@ void update_physics_components()
                 else if (p->pcA)
                 {
 
-                    PC_resolve_impulse_static(p->pcA, p, idx);
+                    PC_resolve_impulse_static(p->pcA, p);
                 }
                 else
                 {
-                    PC_resolve_impulse_static(p->pcA, p, idx);
+                    PC_resolve_impulse_static(p->pcA, p);
                 }
                 if (p->pcA)
                 {
@@ -2092,3 +2096,4 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
     
 }
 
+/** @} */

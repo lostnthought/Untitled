@@ -920,7 +920,6 @@ void incremental_hull(ConvexHull * hull)
 }
 
 
-// Combines contiguous triangles with same normals into one face. Important for more efficient physics / manifold clipping.
 
 void compute_mesh_hulls(ConvexHull * hull)
 {

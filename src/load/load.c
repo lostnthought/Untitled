@@ -2326,7 +2326,6 @@ void scene_load(const char * name)
             font->glyphs = malloc(sizeof(Glyph) * font->glyph_count);
             fread(font->glyphs, sizeof(Glyph), font->glyph_count, f);
         }
-        font->texture = font->image_id;
         
         
     }

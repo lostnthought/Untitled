@@ -6,6 +6,11 @@
 #include <assert.h>
 
 
+/**
+ * @brief The structures, functions, constants, and variables within the physics system.
+ * @addtogroup physics_group 
+ * @{
+ */
 void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW)
 {
     for (int f = 0; f < EW->indices_count; f++)
@@ -938,3 +943,4 @@ bool GJK(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_
         return false;
 }
 
+/** @} */

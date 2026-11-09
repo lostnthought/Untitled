@@ -42,11 +42,6 @@ void evaluate_sh(vec3 dir, float SH[SH_MAX]);
  */
 void load_hrtf_from_binary(const char * filename);
 
-/**
- * @brief Determines if a new IR needs to be signaled from the background thread.
- * @ingroup aprobe_group
- */
-void update_player_audio_probe();
 
 /**
  * @brief Initializes the worker thread that convolves the audio probes with the HRTF.

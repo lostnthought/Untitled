@@ -1378,3 +1378,22 @@ vec3 closest_point_triangle(vec3 p, vec3 a, vec3 b, vec3 c)
     return vec3_add(vec3_add(a, vec3_scale(ab, v)), vec3_scale(ac, w)); // = u*a + v*b + w*c, u = va * denom = 1.0f - v - w
     
 }
+#define DEGREES_TO_RAD (3.14159265358979323846 / 180.0)
+vec3 spherical_to_cartesian(float azimuth_deg, float elevation_deg, float radius) {
+    
+    float azimuth_rad = azimuth_deg * DEGREES_TO_RAD;
+    float elevation_rad = elevation_deg * DEGREES_TO_RAD;
+
+    float projected_rad = radius * cosf(elevation_rad);
+
+    vec3 pos =
+        {
+            -projected_rad * sinf(azimuth_rad),
+            radius * sinf(elevation_rad),
+            -projected_rad * cosf(azimuth_rad)
+
+        };
+
+
+    return pos;
+}

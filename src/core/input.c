@@ -463,7 +463,7 @@ void
         }
         if (keystates[SDL_SCANCODE_F2])
         {
-            init_shaders();
+            SHADERS_INIT();
             cooldown_time = cooldown_interval;
         }
         if (keystates[SDL_SCANCODE_F3])

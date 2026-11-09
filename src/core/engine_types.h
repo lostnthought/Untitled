@@ -23,20 +23,39 @@
 #include "utilities/types.h"
 
 /**
- * @defgroup aprobe_group AudioProbe Definitions
- * @brief All of the required structures for the path traced AudioProbe system.
- * @{
- */
-/** @} */
-
-/**
- * @defgroup audio_group Audio Definitions
+ * @defgroup audio_group Audio System
  * @brief All of the required structures for the AudioEmitter system.
  * @{
  */
 #define MAX_AUDIO_EMITTERS 1024 /**<The maximum amount of AudioEmitter%s*/
 #define MAX_AUDIO_EMITTERS_PER_ENTITY 24 /**<How many AudioEmitters an entity can have attached*/
 #define LPF_ORDER 2 /**<Used for miniaudio low pass filters*/
+/** @} */
+/**
+ * @defgroup aprobe_group AudioProbe System
+ * @brief All of the required structures for the path traced AudioProbe system.
+ * @{
+ */
+/** @} */
+/**
+ * @defgroup editor_group Editor System
+ * @brief All of the required structures for the Editor system.
+ * @{
+ */
+/** @} */
+
+/**
+ * @defgroup physics_group Physics System
+ * @brief All of the required structures for the Physics system.
+ * @{
+ */
+/** @} */
+
+/**
+ * @defgroup ui_group UI System
+ * @brief The structures, functions, constants, and variables within the UI and text rendering system.
+ * @{
+ */
 /** @} */
 
 #define PI 3.14159265358979323846
@@ -103,19 +122,25 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 #define MAX_UI_MENU_NAMES 128 /**<Used in editor to determine dropdown size*/
 
 /**
- * @name Editor Wireframe Sizes
- * @brief Sizes of wireframes for various engine structures.
+ * @addtogroup editor_group
  * @{
  */
-#define EDITOR_LIGHT_SIZE 0.5f
+    /**
+     * @name Editor Wireframe Sizes
+     * @brief Sizes of wireframes for various engine structures.
+     * @{
+     */
+    #define EDITOR_LIGHT_SIZE 0.5f
 
-#define EDITOR_RPROBE_SIZE 0.5f
+    #define EDITOR_RPROBE_SIZE 0.5f
 
-#define EDITOR_AUDIO_EMITTER_SIZE 0.5f 
+    #define EDITOR_AUDIO_EMITTER_SIZE 0.5f 
 
-#define EDITOR_APROBE_SIZE 0.1f 
+    #define EDITOR_APROBE_SIZE 0.1f 
 
-#define EDITOR_APORTAL_SIZE 0.2f 
+    #define EDITOR_APORTAL_SIZE 0.2f 
+    /** @} */
+
 /** @} */
 
 #define PERFORMANCE_OVERLAY_TEXT_BOX_COUNT 13 /**<Offset of how many text boxes are used for the debug performance overlay*/
@@ -125,7 +150,7 @@ const static float AUDIO_BAND_FREQ[] = {125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f
 #define UBERSHADER_VERSIONS 17 /**<Maxmimum main shader brances*/
 #define GBUFFER_VERSIONS 1 /**<Maxmimum gbuffer shader branches*/
 
-#define MAX_PLAYER_CONTACTS 10 /**<Maximum amount of CollisionPoints to consider per frame*/
+#define MAX_PLAYER_CONTACTS 10 /**<Maximum amount of CollisionPoints to consider per frame @ingroup physics_group*/
 
 /**
  * @name Resolutions
@@ -631,6 +656,7 @@ typedef enum MenuNames
 /**
  * @brief Editor settings and engine global variables that can be changed through the editor. Also houses flags and indices for the editor UI.
  * @see editor/editor.c
+ * @ingroup editor_group
  */
 typedef struct EditorSettings
 {
@@ -947,6 +973,7 @@ typedef struct Trigger
  * @see Manifold
  * @see ::MANIFOLDS
  * @see physics/physics.c
+ * @ingroup physics_group
  */
 typedef struct CollisionPoints
 {
@@ -998,13 +1025,13 @@ typedef struct CollisionPoints
 } CollisionPoints;
 
 
-#define MAX_MANIFOLDS 64 /**<The maximum amount of Manifolds in ::MANIFOLDS.*/
 
 
 /**
  * @brief Persistent Manifold%s that track collisions and how to resolve them.
  * @remark Stored in ::MANIFOLDS.
  * @see physics/physics.c
+ * @ingroup physics_group
  */
 typedef struct Manifold
 {
@@ -1068,6 +1095,7 @@ typedef enum PerformanceQueryTypes
  * @brief Convex Hulls that are generated via incremental hull for non-static meshes. Used for collision.
  * @see Mesh
  * @see init_mesh()
+ * @ingroup physics_group
  */
 typedef struct ConvexHull
 {
@@ -1084,6 +1112,7 @@ typedef struct ConvexHull
  * @brief Groups of contiguous triangles with the same plane that are combined via jarvis marching.
  * @see compute_hull_faces()
  * @see compute_mesh_hulls()
+ * @ingroup physics_group
  */
 typedef struct TriangleGroup {
 
@@ -1509,6 +1538,7 @@ typedef struct LightGPU
 /**
  * @brief The structure used for **some** dropdown abstractions in the Editor UI. 
  * @see editor/editor.c
+ * @ingroup editor_group
  */
 typedef struct ComboLabel {
 
@@ -2015,6 +2045,7 @@ typedef struct Entity Entity;
  * @see PhysicsComponent
  * @see physics/physics.c
  * @see core/camera.c
+ * @ingroup physics_group
  */
 typedef enum CollisionType
 {
@@ -2030,6 +2061,7 @@ typedef enum CollisionType
  * @see PhysicsComponent
  * @see physics/physics.c
  * @see core/camera.c
+ * @ingroup physics_group
  */
 typedef enum PhysicsType
 {
@@ -2048,6 +2080,7 @@ typedef enum PhysicsType
  * @see physics/physics.c
  * @see core/camera.c
  * @see init_PC()
+ * @ingroup physics_group
  */
 typedef struct CapsuleData
 {
@@ -2065,6 +2098,7 @@ typedef struct CapsuleData
  * @see physics/GJK.c
  * @see core/camera.c
  * @see init_PC()
+ * @ingroup physics_group
  */
 typedef struct HullData
 {
@@ -2083,6 +2117,7 @@ typedef struct HullData
  * @see physics/GJK.c
  * @see core/camera.c
  * @see init_PC()
+ * @ingroup physics_group
  */
 typedef struct CollisionData
 {
@@ -2103,6 +2138,7 @@ typedef struct CollisionData
  * @see init_PC()
  * @see update_physics_components()
  * @see Entity
+ * @ingroup physics_group
  */
 struct PhysicsComponent
 {
@@ -2285,7 +2321,6 @@ typedef struct State
  * @brief Entity structure that holds components and references to the data it owns.
  * @see ::ENTITIES
  * @see Filter
- * @ingroup audio_group
  */
 struct Entity
 {
@@ -3160,8 +3195,8 @@ typedef struct FileDirectoryRegistry
 
 
 /**
- * @defgroup Editor Menu NKSlider trackers
  * @brief All of these track slider states in the editor UI so that Undo%s with current values can be pushed when sliders start.
+ * @addtogroup editor_group
  * @{
  */
 typedef struct MainEditorMenu
@@ -3343,8 +3378,8 @@ typedef struct TextBoxEditorMenu
     
     
 } TextBoxEditorMenu;
-/** @} */
 
+/** @} */
 
 
 /**

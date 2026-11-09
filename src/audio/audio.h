@@ -11,6 +11,12 @@
 
 
 /**
+ * @brief Determines if a new IR needs to be signaled from the background thread.
+ * @ingroup aprobe_group
+ */
+void update_player_audio_probe();
+
+/**
  * @brief Raycasts from player to audio sources to determine occlusion and performs a star if necessary.
  * @param player The player
  * @ingroup audio_group

@@ -7,18 +7,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-char *read_file(const char *filename) {
-    FILE *f = fopen(filename, "rb");
+char * read_file(const char *filename) {
+
+    FILE * f = fopen(filename, "rb");
     if (!f) return NULL;
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     rewind(f);
-    char *buffer = (char *)malloc(size + 1);
+    char * buffer = (char *)malloc(size + 1);
     if (!buffer) return NULL;
     size_t bytes_read = fread(buffer, 1, size, f);
     buffer[bytes_read] = '\0';
     fclose(f);
-
 
     size_t write_idx = 0;
     for (size_t i = 0; i < bytes_read; i++) {
@@ -28,16 +28,16 @@ char *read_file(const char *filename) {
     }
     buffer[write_idx] = '\0';    
     return buffer;
+
 }
 
 GLuint create_compute_shader(const char *filename) {
+
     const char *src = read_file(filename);
     if (!src) {
         fprintf(stderr, "Failed to read shader file: %s\n", filename);
         return 0;
     }
-
-    
 
     GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
     GLint src_len = (GLint)strlen(src);
@@ -374,14 +374,14 @@ GLuint compile_postprocess_shader(GLenum type, const char *filename, uint32_t PP
     return shader;
 }
 
-GLuint create_shader_program(const char *vertexPath, const char *fragmentPath) {
-    GLuint vertexShader = compile_shader(GL_VERTEX_SHADER, vertexPath);
-    GLuint fragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragmentPath);
-    if (!vertexShader || !fragmentShader) return 0;
+GLuint create_shader_program(const char * vertex_path, const char * fragment_path) {
+    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_path);
+    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_path);
+    if (!vertex_shader || !fragment_shader) return 0;
 
     GLuint program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
+    glAttachShader(program, vertex_shader);
+    glAttachShader(program, fragment_shader);
     glLinkProgram(program);
 
     GLint success;
@@ -400,8 +400,8 @@ GLuint create_shader_program(const char *vertexPath, const char *fragmentPath) {
         }
     }
 
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
 
     return program;
 }
@@ -540,14 +540,6 @@ GLuint create_postprocess_program(const char *vertexPath, const char *fragmentPa
     return program;
 }
 
-void init_static_shader()
-{
-    sprintf(STATIC_SHADER.vert_path, "./static.vert");
-    sprintf(STATIC_SHADER.frag_path, "./static.frag");
-
-    STATIC_SHADER.program = create_shader_program(STATIC_SHADER.vert_path, STATIC_SHADER.frag_path);
-
-}
 void init_dynamic_shader()
 {
 
@@ -966,25 +958,6 @@ void init_cull_draw_calls_compute_shader()
 //     GGX_RPROBE_SHADER.program = create_shader_program(GGX_RPROBE_SHADER.vert_path, GGX_RPROBE_SHADER.frag_path);
 // }
 
-void init_sobel_shader()
-{
-
-    sprintf(SOBEL_SHADER.vert_path, "../src/render/postprocess.vert");
-    sprintf(SOBEL_SHADER.frag_path, "../src/render/sobel.frag");
-
-    SOBEL_SHADER.program = create_shader_program(SOBEL_SHADER.vert_path, SOBEL_SHADER.frag_path);
-
-}
-void init_history_shader()
-{
-
-    sprintf(HISTORY_SHADER.vert_path, "../src/render/postprocess.vert");
-    sprintf(HISTORY_SHADER.frag_path, "../src/render/history.frag");
-
-    HISTORY_SHADER.program = create_shader_program(HISTORY_SHADER.vert_path, HISTORY_SHADER.frag_path);
-
-}
-
 void init_audio_shader()
 {
     AUDIO_PROBE_BAKE_SHADER = create_compute_shader("../src/audio/audio_probe_bake.comp");
@@ -1155,17 +1128,15 @@ void init_bloom_shader()
 }
 
 
-void init_shaders()
+void SHADERS_INIT()
 {
 
-    glDeleteShader(LIGHTMAP_INIT_SHADER);
     glDeleteShader(LIGHTMAP_BOUNCE_SHADER);
     glDeleteShader(LIGHTMAP_DENOISE_SHADER);
     glDeleteShader(LIGHTMAP_DILATE_SHADER);
     glDeleteShader(PROBE_BAKE_SHADER);
     glDeleteShader(PROBE_UNPACK_SHADER);
     glDeleteShader(DIRECTIONAL_MAP_NORMALIZE_SHADER);
-    glDeleteShader(STATIC_SHADER.program);
     for (int i = 0; i < UBERSHADER_VERSIONS; i++)
     {
         glDeleteShader(DYNAMIC_SHADER[i].program);
@@ -1179,9 +1150,6 @@ void init_shaders()
     glDeleteShader(SKY_SHADER.program);
     glDeleteShader(LIGHTMAP_SHADER.program);
     glDeleteShader(BRDF_SHADER.program);
-    glDeleteShader(SOBEL_SHADER.program);
-    glDeleteShader(HISTORY_SHADER.program);
-    glDeleteShader(GGX_RPROBE_SHADER.program);
     for (int i = 0; i < GBUFFER_VERSIONS; i++)
     {
         glDeleteShader(DEPTH_PRE_PASS_SHADER[i].program);
@@ -1216,7 +1184,6 @@ void init_shaders()
 
     init_postprocess_shader();
     init_lightmap_shader();
-    // init_lightmap_init_compute_shader();
     init_text_shader();
     init_ui_shader();
 
@@ -1225,8 +1192,6 @@ void init_shaders()
     init_sky_shader();
     init_brdf_shader();
     // init_rprobe_shader();
-    // init_sobel_shader();
-    // init_history_shader();
     init_depth_pre_pass_shader();
     init_ssao_shader();
     init_cull_clusers_compute_shader();

@@ -1247,17 +1247,17 @@ MeshNode * find_root_node_armature(MeshNode * mns, MeshNode * mn)
 
 
 
-void load_gltf(const char *gltfPath)
+void load_gltf(const char *gltf_path)
 {
     GLTFDoc doc = {0};
     char prefix[256];
-    strcpy(prefix, gltfPath);
+    strcpy(prefix, gltf_path);
     char * last = strrchr(prefix, '/');
     if (last != NULL)
     {
         last[1] = '\0';
     }
-    if (!parse_gltf_json(gltfPath, prefix, &doc)) {
+    if (!parse_gltf_json(gltf_path, prefix, &doc)) {
         return;
     }
 
@@ -1617,7 +1617,7 @@ void load_gltf(const char *gltfPath)
     }
 
 
-    strcpy(asset->path, gltfPath);
+    strcpy(asset->path, gltf_path);
     asset->asset_id = GLOBALS.assets.count-1;
     MeshNode * root_node = &doc.nodes[root];
 

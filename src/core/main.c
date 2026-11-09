@@ -46,8 +46,6 @@
 int LMB_HELD = 0;
 int DEBUG_APROBE_RAY_COUNT = 0;
 
-DebugVertex * DEBUG_APROBE = NULL;
-int VALID_APROBE_SAMPLES = 0;
 int DEBUG_CURRENT_APROBE = 0;
 
 
@@ -99,8 +97,6 @@ Framebuffer BOKEH_FBO = {0};
 Framebuffer BLOOM_PYRAMID[6] = {0};
 Framebuffer TEXT_FBO = {0};
 
-ShaderProgram SOBEL_SHADER = {0};
-ShaderProgram HISTORY_SHADER = {0};
 ShaderProgram SSAO_SHADER = {0};
 ShaderProgram SSAO_BLUR_SHADER = {0};
 ShaderProgram SSR_SHADER = {0};
@@ -110,7 +106,6 @@ ShaderProgram COC_SHADER = {0};
 ShaderProgram BOKEH_SHADER = {0};
 ShaderProgram BLOOM_SHADER = {0};
 ShaderProgram BLOOM_BLUR_SHADER = {0};
-ShaderProgram STATIC_SHADER = {0};
 ShaderProgram DYNAMIC_SHADER[32] = {0};
 ShaderProgram SHADOW_MAP_SHADER = {0};
 ShaderProgram DEPTH_PRE_PASS_SHADER[GBUFFER_VERSIONS] = {0};
@@ -127,7 +122,6 @@ ShaderProgram BLOOM_UPSCALE_SHADER = {0};
 ShaderProgram SKY_SHADER = {0};
 ShaderProgram LIGHTMAP_SHADER = {0};
 ShaderProgram BRDF_SHADER = {0};
-ShaderProgram GGX_RPROBE_SHADER = {0};
 ShaderProgram POINT_LIGHT_SHADOW_SHADER = {0};
 ShaderProgram TEXT_SHADER = {0};
 ShaderProgram UI_SHADER = {0};
@@ -213,7 +207,6 @@ GLuint SOBEL_TEXTURE[2] = {0};
 
 vec4 SSAO_KERNEL[16];
 
-GLuint LIGHTMAP_TEX;
 
 GLuint LIGHTMAP_FBO = 0;
 GLuint LIGHTMAP_VAO = 0;
@@ -224,7 +217,6 @@ GLuint LIGHTMAP_ID_TEXTURE = 0;
 GLuint DIRECTIONAL_MAP_TEXTURE = 0;
 GLuint LIGHTMAP_PING = 0;
 GLuint LIGHTMAP_PONG = 0;
-GLuint LIGHTMAP_INIT_SHADER = 0;
 GLuint LIGHTMAP_BOUNCE_SHADER = 0;
 GLuint LIGHTMAP_DENOISE_SHADER = 0;
 GLuint LIGHTMAP_DILATE_SHADER = 0;
@@ -258,7 +250,6 @@ GLuint UI_VAO = 0;
 GLuint UI_VBO = 0;
 GLuint UI_INSTANCE_VBO = 0;
 
-int CURRENT_DIRECTIONAL = 0;
 
 DrawCommand DRAW_COMMANDS[MAX_DRAW_COMMANDS];
 int draw_command_count;
@@ -296,7 +287,6 @@ EPAWorkspace * EW[8];
 
 GLsync RENDER_FENCE[BUFFER_FRAMES];
 
-AnimationComponent * MOVING_LEG_ANIM = NULL;
 vec3 left_hip_pos;
 vec3 right_hip_pos;
 
@@ -657,17 +647,6 @@ int main(int argc, char *argv[]) {
             CAM_POS = (vec3){cam.cam_data.cam_pos.x, cam.cam_data.cam_pos.y, cam.cam_data.cam_pos.z};
             Light * lights = CAST_VEC(GLOBALS.lights, Light);
 
-            CURRENT_DIRECTIONAL = 0;
-            for (int i = 0; i < GLOBALS.lights.count; i++)
-            {
-                Light * l = &lights[i];
-                if (l->light_type != DIRECTIONAL_LIGHT) continue;
-                if (point_in_aabb(CAM_POS, &l->area))
-                {
-                    CURRENT_DIRECTIONAL = i;
-                    break;
-                }
-            }
         
             DIRECTIONAL_LIGHT_COUNT = 0;
             for (int i = 0; i < GLOBALS.lights.count; i++)

@@ -14,6 +14,15 @@
 #include "physics/physics.h"
 #include "physics/GJK.h"
 
+static float calculate_stride_governor(vec3 player_pos, LegIK *left_leg, LegIK *right_leg);
+static void player_find_collision(vec3 start, vec3 proposed, CollisionPoints p[MAX_PLAYER_CONTACTS], int * contact_count);
+static void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3]);
+static bool update_leg(LegIK * leg, LegIK * other_leg, vec3 tr, vec3 vel);
+static vec3 rot(vec3 M[3], vec3 a);
+static bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos);
+static void update_spring(Spring * s);
+static void update_angular_spring(Spring * s, float dt);
+static void calculate_camera_angles(Camera * cam, Spring* s, vec3 input_acceleration, float dt);
 
 void
     compute_camera_basis
@@ -442,7 +451,7 @@ void
 
 }
 
-float calculate_stride_governor(vec3 player_pos, LegIK *left_leg, LegIK *right_leg)
+static float calculate_stride_governor(vec3 player_pos, LegIK *left_leg, LegIK *right_leg)
 {
     vec3 support_pos;
     bool both_planted = !left_leg->stepping && !right_leg->stepping;
@@ -591,7 +600,7 @@ bool ground_hit;
 
 
 
-void player_find_collision(vec3 start, vec3 proposed, CollisionPoints p[MAX_PLAYER_CONTACTS], int * contact_count)
+static void player_find_collision(vec3 start, vec3 proposed, CollisionPoints p[MAX_PLAYER_CONTACTS], int * contact_count)
 {
 
     Mesh * meshes = CAST_VEC(GLOBALS.meshes, Mesh);
@@ -863,7 +872,7 @@ void reset_skeleton(Skeleton * s, vec3 pos)
 }
 
 
-void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3])
+static void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3])
 {
 
     minv[0] = vec3_normalize(P);
@@ -885,7 +894,7 @@ void define_M(vec3 P, vec3 D, vec3 minv[3], vec3 mfwd[3])
 }
 
 
-vec3 rot(vec3 M[3], vec3 a)
+static vec3 rot(vec3 M[3], vec3 a)
 {
     vec3 b;
 
@@ -979,7 +988,7 @@ void update_body_from_legs(LegIK *left_leg, LegIK *right_leg, vec3 intended_vel,
     player.pc->vel = vec3_add(player.pc->vel, vec3_scale(acceleration, dt));
 
 }
-bool update_leg(LegIK * leg, LegIK * other_leg, vec3 tr, vec3 vel)
+static bool update_leg(LegIK * leg, LegIK * other_leg, vec3 tr, vec3 vel)
 {
     
 
@@ -1087,8 +1096,7 @@ bool update_leg(LegIK * leg, LegIK * other_leg, vec3 tr, vec3 vel)
 }
 
 // From Perlin's 2 joint IK implementation
-float moving_offset = 0;
-bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos)
+static bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos)
 {
 
     vec3 HIP_POS = hip_pos;
@@ -1124,7 +1132,7 @@ bool solve_Q(Skeleton * s, vec3 D, vec3 * Q, vec3 * P, vec3 hip_pos)
 
 
 
-void update_spring(Spring * s)
+static void update_spring(Spring * s)
 {
 
     vec3 diff = vec3_sub(s->pos, s->target);
@@ -1138,7 +1146,7 @@ void update_spring(Spring * s)
     
 }
 
-void update_angular_spring(Spring * s, float dt) {
+static void update_angular_spring(Spring * s, float dt) {
 
     vec3 displacement = vec3_sub(s->rotation, s->target_rot);
     
@@ -1157,7 +1165,7 @@ void update_angular_spring(Spring * s, float dt) {
 }
 
 
-void calculate_camera_angles(Camera * cam, Spring* s, vec3 input_acceleration, float dt) {
+static void calculate_camera_angles(Camera * cam, Spring* s, vec3 input_acceleration, float dt) {
 
     vec3 base_look_rot = (vec3){cam->yaw, cam->pitch, cam->roll}; 
     

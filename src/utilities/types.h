@@ -52,6 +52,10 @@ typedef struct OBB
 
 } OBB;
 
+/**
+ * @addtogroup editor_group
+ * @{
+ */
 typedef enum UndoStructureType
 {
 
@@ -196,15 +200,8 @@ typedef struct NKSlider
 } NKSlider;
 
 
-typedef struct NKVal
-{
-    
-    uint8_t bytes[MAX_UNDO_BYTES];
-    size_t byte_size;
 
-} NKVal;
-
-
+/** @} */
 
 typedef struct Vector
 {

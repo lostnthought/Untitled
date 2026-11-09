@@ -27,6 +27,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * @brief The structures, functions, constants, and variables within the editor system.
+ * @addtogroup editor_group 
+ * @{
+ */
 LightEditorMenu LIGHT_MENU = {0};
 MainEditorMenu MAIN_MENU = {0};
 LProbeEditorMenu LPROBE_MENU = {0};
@@ -1850,7 +1855,7 @@ bool check_equivalencyi(int * a, int b, NKSlider * s, bool * dirty)
 }
 
 
-void init_file_directory_registries()
+void FILE_DIR_REGISTRY_INIT()
 {
 
     init_vector(&scene_registry.names, 0, sizeof(char) * 256);
@@ -6793,4 +6798,5 @@ void render_editor_menu()
 }
 
 
+/** @} */
 

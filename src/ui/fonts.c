@@ -56,6 +56,7 @@ Font * read_json_msdf(const char * json_path, const char * png_path) {
     Font * font = vector_expand(&FONTS, 1);
     font->tex_w = tex_w;
     font->tex_h = tex_h;
+    font->id = FONTS.count-1;
     strncpy(font->name, png_path, 255);
     font->name[255] = '\0';
     cJSON *chars = cJSON_GetObjectItem(root, "chars");

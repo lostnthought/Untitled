@@ -558,6 +558,9 @@ void save_lightmap_to_binary(LightmapData * ld, const char * name)
 
 
     fwrite(&ld->islands.count, sizeof(size_t), 1, f);
+    /**
+     * @critical This is a bug. There is no need to write all Mesh UVMapping%s per UVIsland and it will explode data. 
+     */
     for (int i = 0; i < ld->islands.count; i++)
     {
 
@@ -659,6 +662,9 @@ void load_lightmap_from_binary(LightmapData * ld, const char * name)
     fread(&ld->sample_cubemap, sizeof(bool), 1, f);
 
 
+    /**
+     * @critical This does not free the current UVIsland%s and may be a memory leak. 
+     */
     fread(&ld->islands.count, sizeof(size_t), 1, f);
     if (ld->islands.count> 0)
     {
@@ -866,8 +872,8 @@ void bake_reflection_probes()
 
     glFinish();
     EDITOR_SETTINGS.MSAA = has_aa;
-    glBindVertexArray(CONVOLVE_TRIANGLE_VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, CONVOLVE_TRIANGLE_VBO);
+    // glBindVertexArray(CONVOLVE_TRIANGLE_VAO);
+    // glBindBuffer(GL_ARRAY_BUFFER, CONVOLVE_TRIANGLE_VBO);
 
     
 
@@ -875,7 +881,7 @@ void bake_reflection_probes()
     // glUniform1f(glGetUniformLocation(GGX_RPROBE_SHADER.program, "uResolution"), RPROBE_WIDTH);
 
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     RProbe * probes = calloc(GLOBALS.scene_data.reflection_probes.count, sizeof(RProbe));
 

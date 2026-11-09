@@ -1008,14 +1008,12 @@ bool init_globals()
 
 
 
-    LIGHTMAP_INIT_SHADER = 0;
     LIGHTMAP_BOUNCE_SHADER = 0;
     LIGHTMAP_DENOISE_SHADER = 0;
     LIGHTMAP_DILATE_SHADER = 0;
     PROBE_BAKE_SHADER = 0;
     PROBE_UNPACK_SHADER = 0;
     DIRECTIONAL_MAP_NORMALIZE_SHADER = 0;
-    STATIC_SHADER.program = 0;
     for (int i = 0; i < UBERSHADER_VERSIONS; i++)
     {
         DYNAMIC_SHADER[i].program = 0;
@@ -1134,7 +1132,6 @@ bool init_globals()
             GL_CLAMP_TO_EDGE,
             GL_CLAMP_TO_EDGE,
             false);
-        font->image_id = GLOBALS.images.count-1;
     }
 
     
@@ -2115,7 +2112,7 @@ bool
     
     init_player();
 
-    init_file_directory_registries();
+    FILE_DIR_REGISTRY_INIT();
 
     
     SDL_GL_SetSwapInterval(0);
@@ -2872,7 +2869,7 @@ bool
     bind_render_ssbos();
 
     printf("Shaders\n");
-    init_shaders();
+    SHADERS_INIT();
 
     printf("Vertices\n");
 
