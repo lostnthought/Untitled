@@ -1,4 +1,9 @@
 
+/**
+ * @file dynamic.vert
+ * @brief The main forward vertex shader.
+ */
+
 #version 460
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec3 aNormal;
@@ -43,6 +48,10 @@ layout(std140, binding = 4) uniform PrevCameraData {
 };
 
 
+/**
+ * @brief Oriented Bounding Boxes.
+ * @ingroup shader_structs_group
+ */
 struct OBB
 {
     vec3 center;
@@ -58,31 +67,25 @@ struct OBB
     
 };
 
-layout(std140, binding = 6) uniform ProbeVolumeData{
-    OBB pvs[6];
-};
-
-
-layout(std430, binding = 3) buffer LightmapData {
-
-    vec4 uvs[];
-
-};
+/**
+ * @brief Indirect draw commands for GPU indirect.
+ * @ingroup shader_structs_group
+ */
 struct DrawArraysIndirectCommand {
+
     uint count;
     uint instanceCount;
     uint first;
     uint baseInstance;
     uint instanceOffset; // the amount of instances pushed this frame
     uint pad0;
+
 };
 
-
-layout(std430, binding = 5) buffer DrawArraysData {
-
-    DrawArraysIndirectCommand draw_arrays_commands[];
-};
-
+/**
+ * @brief GPU-side MeshNode%s.
+ * @ingroup shader_structs_group
+ */
 struct MeshNode
 {
     vec4 min;
@@ -99,22 +102,10 @@ struct MeshNode
     uint pad1;
 };
 
-#define MAX_MESH_NODES 1024
-layout(std430, binding = 15) buffer MeshNodeData {
-
-    float focal_distance;
-    uint pad0;
-    uint pad1;
-    uint pad2;
-    MeshNode mns[MAX_MESH_NODES];
-
-};
-#define MAX_INSTANCES 1024
-layout(std430, binding = 4) buffer VisibleData {
-
-    uint visible_indices[];
-
-};
+/**
+ * @brief Transforms for MeshNode models.
+ * @ingroup shader_structs_group
+ */
 struct Transform
 {
     uint mn_id;
@@ -124,6 +115,28 @@ struct Transform
     uint skin_offset;
     uint material;
     mat4 mat;
+};
+
+layout(std430, binding = 3) buffer LightmapData {
+
+    vec4 uvs[];
+
+};
+
+#define MAX_INSTANCES 1024
+layout(std430, binding = 4) buffer VisibleData {
+
+    uint visible_indices[];
+
+};
+
+layout(std430, binding = 5) buffer DrawArraysData {
+
+    DrawArraysIndirectCommand draw_arrays_commands[];
+};
+
+layout(std140, binding = 6) uniform ProbeVolumeData{
+    OBB pvs[6];
 };
 
 layout(std430, binding = 7) buffer TransformData {
@@ -137,6 +150,21 @@ layout(std430, binding = 11) buffer JointData {
     mat4 joint_mats[];
 
 };
+
+
+#define MAX_MESH_NODES 1024
+layout(std430, binding = 15) buffer MeshNodeData {
+
+    float focal_distance;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+    MeshNode mns[MAX_MESH_NODES];
+
+};
+
+
+
 
 
 out vec3 ViewPos;
@@ -171,15 +199,6 @@ uniform uint uLPVDepthPadded;
 uniform sampler3D probe_tex;
 
 
-vec3 pos_to_pv_local(OBB obb, vec3 pos)
-{
-    
-    vec3 local_pos = pos - obb.center;
-    mat3 rot = mat3(obb.axis_x, obb.axis_y, obb.axis_z);
-    vec3 unrotated = inverse(rot) * local_pos;
-    vec3 norm = unrotated / (obb.extents * 2.0f);
-    return norm + 0.5f;
-}
 
 #define LPV_SLOTS 6
 #define SH_MAX 9

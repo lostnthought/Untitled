@@ -1,3 +1,8 @@
+
+/**
+ * @file main.c
+ * @brief Audio probe baking, portal creation, probe volumes, and emitter functions.
+ */
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
@@ -464,6 +469,38 @@ GLuint64 retrieve_gl_query(GLuint query)
     return e;
 }
 
+/**
+ * @brief Computes the dot product or discrete sum over an array range.
+ * \f[
+ * S = \sum_{i=0}^{N-1} x[i] \cdot w[i]
+ * \f]
+ */
+
+
+/**
+ * @brief Applies an impulse response filter via discrete convolution.
+ * \f[
+ * (x * h)[n] = \sum_{m=-\infty}^{\infty} x[m] \, h[n - m]
+ * \f]
+ */ 
+
+
+/**
+ * @brief Evaluates the rendering equation for global illumination.
+ * \f[
+ * L_o(x, \omega_o) = L_e(x, \omega_o) + \int_{\Omega} f_r(x, \omega_i, \omega_o) L_i(x, \omega_i) (\omega_i \cdot n) \, d\omega_i
+ * \f]
+ */ 
+
+/**
+ * @brief Computes Schlick's approximation for Fresnel reflectance.
+ * \f{eqnarray*}
+ * F(\theta) &=& F_0 + (1 - F_0)(1 - \cos\theta)^5 \\
+ * \text{where } \cos\theta &=& \max(0, \omega_h \cdot v)
+ * \f}
+ */ 
+
+
 
 double time_since_last_render = 0.0;
 GLuint main_queries[QUERY_FRAMES];
@@ -706,17 +743,17 @@ int main(int argc, char *argv[]) {
             GLuint64 query_s[PQUERY_MAX];
             GLint available = 0;
             
-            query_s[PQUERY_SM] = retrieve_gl_query(sm_queries[oldest_frame]);
-            query_s[PQUERY_CULL] = retrieve_gl_query(cull_queries[oldest_frame]);
-            query_s[PQUERY_MAIN] = retrieve_gl_query(main_queries[oldest_frame]);
-            query_s[PQUERY_PL] = retrieve_gl_query(pl_queries[oldest_frame]);
-            query_s[PQUERY_GBUFFER] = retrieve_gl_query(gbuffer_queries[oldest_frame]);
-            query_s[PQUERY_DOF] = retrieve_gl_query(dof_queries[oldest_frame]);
-            query_s[PQUERY_SSAO] = retrieve_gl_query(ssao_queries[oldest_frame]);
-            query_s[PQUERY_TAA] = retrieve_gl_query(taa_queries[oldest_frame]);
-            query_s[PQUERY_SSR] = retrieve_gl_query(ssr_queries[oldest_frame]);
-            query_s[PQUERY_BLOOM] = retrieve_gl_query(bloom_queries[oldest_frame]);
-            query_s[PQUERY_RENDER] = retrieve_gl_query(render_queries[oldest_frame]);
+            // query_s[PQUERY_SM] = retrieve_gl_query(sm_queries[oldest_frame]);
+            // query_s[PQUERY_CULL] = retrieve_gl_query(cull_queries[oldest_frame]);
+            // query_s[PQUERY_MAIN] = retrieve_gl_query(main_queries[oldest_frame]);
+            // query_s[PQUERY_PL] = retrieve_gl_query(pl_queries[oldest_frame]);
+            // query_s[PQUERY_GBUFFER] = retrieve_gl_query(gbuffer_queries[oldest_frame]);
+            // query_s[PQUERY_DOF] = retrieve_gl_query(dof_queries[oldest_frame]);
+            // query_s[PQUERY_SSAO] = retrieve_gl_query(ssao_queries[oldest_frame]);
+            // query_s[PQUERY_TAA] = retrieve_gl_query(taa_queries[oldest_frame]);
+            // query_s[PQUERY_SSR] = retrieve_gl_query(ssr_queries[oldest_frame]);
+            // query_s[PQUERY_BLOOM] = retrieve_gl_query(bloom_queries[oldest_frame]);
+            // query_s[PQUERY_RENDER] = retrieve_gl_query(render_queries[oldest_frame]);
 
 
             update_performance_overlay(query_s);

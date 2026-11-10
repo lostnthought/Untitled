@@ -1254,7 +1254,7 @@ void solve_SH(vec3 color, vec3 dir, int index, vec3 pos)
 
 
 
-void main()
+void main()               
 {
 
     ivec3 coord = ivec3(gl_GlobalInvocationID.xyz);

@@ -559,7 +559,7 @@ void
 
                 SDL_SetWindowGrab(*window, SDL_FALSE);
                 SDL_SetRelativeMouseMode(SDL_FALSE);
-            cooldown_time = cooldown_interval;
+                cooldown_time = cooldown_interval;
 
             }
 
@@ -568,7 +568,7 @@ void
 
                 SDL_SetWindowGrab(*window, SDL_TRUE);
                 SDL_SetRelativeMouseMode(SDL_TRUE);
-            cooldown_time = cooldown_interval;
+                cooldown_time = cooldown_interval;
 
             }
             if (keystates[SDL_SCANCODE_N]) {

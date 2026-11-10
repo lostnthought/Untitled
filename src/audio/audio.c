@@ -1,3 +1,9 @@
+
+/**
+ * @file audio.c
+ * @brief Audio probe baking, portal creation, probe volumes, and emitter functions.
+ */
+
 #include "audio/audio.h"
 #include "SDL2/SDL_mutex.h"
 #include "SDL2/SDL_thread.h"
@@ -23,27 +29,384 @@ float BAND_IMPULSES[AUDIO_NUM_BANDS][AUDIO_KERNEL_SIZE];
 
 
 
+/**
+ * @brief Swaps A and B.
+ * @ingroup audio_group
+ */ 
 static void heap_swap(OpenNode *a, OpenNode *b);
+
+/**
+ * @brief After a node has been pushed to the top of the stack, we reorder by f score.
+ * @ingroup audio_group
+ * @param h The OpenNode Vector.
+ */ 
 static void heap_push(Vector * h);
+
+/**
+ * @brief Pops the bottommost root off of the OpenNode Vector and then places the topmost node onto the bottom and resorts.
+ * @ingroup audio_group
+ * @param h The OpenNode Vector.
+ * @returns The root node.
+ */ 
 static OpenNode heap_pop(Vector *h);
+
+/**
+ * @brief Traverses the AStarStateStack and backtracks to find the entire path.
+ * @ingroup audio_group
+ * @warning ::MAX_PORTALS may cause issues with larger paths.
+ * @critical The prev index here looks very suspicious, it should not be tied to end, as end should be an index into the array of portals.
+ * @param WS The AStarWorkspace that conducted the search.
+ * @param start The beginning index of the portal path.
+ * @param end The end index of the portal path.
+ */ 
 static void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end);
+
+
+/**
+ * @brief Conducts AStar between a start and end point in AudioPortal%s.
+ * @ingroup audio_group
+ * @param WS The AStarWorkspace that conducted the search.
+ * @param start The beginning index of the portal path.
+ * @param end The end index of the portal path.
+ * @returns End of the portal path if found. -1 if none found.
+ * @note Returns -1 if none found.
+ */ 
 static int a_star_aportal(AStarWorkspace * WS, int start, int end);
+
+
+/**
+ * @brief Calculates volume over a path.
+ * @ingroup audio_group
+ * @param path_distance The total distance of the entire path.
+ * @param min_distance The minimum distance clamp.
+ * @param max_distance The maximum distance clamp.
+ * @returns The volume.
+ */ 
 static float calculate_path_volume_equal_power(float path_distance, float min_distance, float max_distance);
+
+/**
+ * @brief Finds closest AudioPortal to the AudioEmitter and calls AStar to pathfind, then calulcates the volume.
+ * @ingroup audio_group
+ * @see Globals.audio_portals
+ * @param listener_pos The position of the Player.
+ * @param closest_l Closest AudioPortal to the player.
+ * @param emitter_pos The position of the AudioEmitter.
+ * @param out_pos Pointer to the position that will be filled in with the closest visible AudioPortal to the listener.
+ * @param out_volume Pointer to the out volume.
+ * @param distance Pointer to the entire distance of the resulting path.
+ * @returns If path was found.
+ */ 
 static bool pathfind_audio_occlusion(vec3 listener_pos, int closest_l, vec3 emitter_pos, vec3 * out_pos, float * out_volume, float * distance);
-// static void update_lpf_sound(AudioEmitter * emitter, bool occluded);
+
+
+/**
+ * @brief Converts a position to local OBB space.
+ * @ingroup aprobe_group
+ * \begin{align}
+ * p &= \mathrm{Position} \\\\
+ * c &= \mathrm{Center} \\\\
+ * l &= \mathrm{Length} \\\\
+ * \Delta &= p - c \\\\
+ * n &= \mathbf{M^r}\mathbf{\Delta} \\\\
+ * &= (\frac{n}{l}) * 0.5
+ * \end{align}
+ * @param obb The OBB to transform into.
+ * @param pos The world space position.
+ * @returns The resultingcoord as if it was a texture from \f$0 \rightarrow 1\f$.
+ */ 
 static vec3 pos_to_pv_local(OBB *obb, vec3 pos);
+
+
+/**
+ * @brief Checks which ProbeVolume a position is inside.
+ * @ingroup aprobe_group
+ * @todo Handle multiple ProbeVolume%s and bordering ProbeVolume%s.
+ * @param pos The position to check.
+ * @returns The index to the ProbeVolume inside of SceneData.audio_probe_volumes.
+ */ 
 static int query_probe_volume(vec3 pos);
+
+/**
+ * @brief Frees an APV from its slot.
+ * @ingroup aprobe_group
+ * @param apv The APV to free.
+ * @param apb The pointer to the boolean that checks if the APV is loaded.
+ */ 
 static void remove_audio_pv(APV * apv, bool * apb);
+
+/**
+ * @brief Loads an APV into a slot.
+ * @ingroup aprobe_group
+ * @param apv The APV slot to load into.
+ * @param pv The ProbeVolume that describes the offset and size of the probe data inside of SceneData.APV_FILE.
+ */ 
 static void load_audio_pv(APV * apv, ProbeVolume * pv);
-// static vec3 probe_world_position(ProbeVolume * pv, int x, int y, int z);
+
+/**
+ * @brief Interpolates between 4 closest AudioProbe%s within one singular ProbeVolume and weighs them based on distance.
+ * @ingroup aprobe_group
+ * @param pos The pos to interpolate around.
+ * @param out_w Pointer to the resulting weights.
+ */ 
 static void interpolate_nearest_aprobes(vec3 pos, AudioProbeWeights * out_w);
+
+/**
+ * @brief Processes a biquad filter over a sample.
+ * @details
+ * \f$y_b[n] = b_{0,b} \cdot (w[n] E_b[n]) + b_{1,b} \cdot x_b[n-1] + b_{2,b} \cdot x_b[n-2] - a_{1,b} \cdot y_b[n-1] - a_{2,b} \cdot y_b[n-2]\f$
+ * @ingroup aprobe_group
+ * @param filter The Biquad.
+ * @param in_sample The sample.
+ * @returns The filtered sample. 
+ */ 
 static float process_biquad(Biquad* filter, float in_sample) ;
+
+/**
+ * @brief Initializes a bandpass filter for the synthetic IR.
+ * @ingroup aprobe_group
+ * @param filter The Biquad.
+ * @param sample_rate The sample rate to divide by.
+ * @param center_freq What frequency the bandpass centers around.
+ * @param q The Q of the filter.
+ */ 
 static void init_bandpass(Biquad * filter, float sample_rate, float center_freq, float q);
+
+/**
+ * @brief Generates a synthetic IR tail for a given AudioProbe based on its RT60.
+ * @details
+ * \begin{align}
+ * E_b &= \mathrm{Envelope} \\\\
+ * f &= \mathrm{Fade\ Start} \\\\
+ * s &= \mathrm{IR\ Samples} \\\\
+ * B &= \mathrm{Band\ Count} \\\\
+ * H_b &= \mathrm{%Biquad\ %Filter} \\\\
+ * d_b &= \mathrm{%Decay} \\\\
+ * y &= \mathrm{%Output\ Samples} \\\\
+ * & \textbf{for } n \in{}[f,s) \textbf{ do}\\\\
+ * & \quad \omega[n] = \gamma \cdot \mathcal{U}(-1, 1) \\\\
+ * & \quad \text{where } \gamma = \frac{1}{0.577350268} \\\\
+ * & \quad y_b[n] = b_{0,b} \cdot (w[n] E_b[n]) + b_{1,b} \cdot x_b[n-1] + b_{2,b} \cdot x_b[n-2] - a_{1,b} \cdot y_b[n-1] - a_{2,b} \cdot y_b[n-2] \\\\
+ * & \quad E_b[n] = E_b[n-1] \cdot d_b \\\\
+ * & \quad y[n] = \sum_{b=0}^{B-1}H_b(\omega[n] \cdot E_b[n]) \\\\
+ * \end{align}
+ *
+ * @ingroup aprobe_group
+ * @param out_tail The samples to write to.
+ * @param fade_start The first sample to begin writing to.
+ * @param probe The AudioProbe to generate samples for.
+ * @param rms The RMS of the early reflections that we match our gain to.
+ */ 
 static void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioProbe * probe, float rms);
+
+/**
+ * @brief Generates an Energy Decay Curve for input IR samples.
+ * @details
+ * \begin{align}
+ * Y_k &= \sum_{i=0}^{k}X_i \\\\
+ * E_{\text{max}} &= \max(Y_k[0], 1\cdot10^{-12}) \\\\ 
+ * \textbf{for } i &= 0 \text{ to } N_{\text{max}} - 1: \\\\
+ * & \quad Y_k[i] = \begin{cases} 
+ * 10 \cdot \log_{10}\left(\frac{Y_k[i]}{E_{\text{max}}}\right), & \text{if } Y_k[i] > 0 \\\\ 
+ * -120, & \text{otherwise}
+ * \end{cases}
+ * \end{align}
+ *
+ * @ingroup aprobe_group
+ * @param energy_histogram The incoming energy samples (may be binned).
+ * @param edc_out The resulting EDC.
+ */ 
 static void compute_schroeder_edc(float* energy_histogram, float* edc_out);
+
+
+/**
+ * @brief Extracts the RMS from a certain sample range before the synthetic IR.
+ * @details
+ * 
+ * \begin{align}
+ * S &= \text{%Start} \\\\
+ * F &= \text{%Fade %Start} \\\\ 
+ * X &= \text{%IR %Samples} \\\\ 
+ * &= \sqrt(\frac{\sum_{i=S}^{F-1}X^2}{F-S}) \\\\
+ * \end{align}
+ * @ingroup aprobe_group
+ * @param probe The AudioProbe with samples.
+ * @param fade_start Where we will start fading into the synthetic IR.
+ * @param window_size How large of a window of samples to average.
+ * @returns The RMS.
+ */ 
 static float extract_rms(AudioProbe * probe, int fade_start, int window_size);
+
+/**
+ * @brief Extracts the RT60 from an EDC for computing a synthetic IR.
+ * @details
+ * \begin{align}
+ * L_{\text{max}} &= \text{%Last %Sample} \\\\
+ * E &= \text{%EDC} \\\\
+ * R_{\text{t60}} &= \text{%RT60} \\\\
+ * S &= \text{%Slope} \\\\
+ * B &= \text{%Bin %Duration} \\\\
+ * s_i &= -1 \\\\
+ * e_i &= -1 \\\\
+ * & \textbf{for } i = 0 \text{ to } L_{\text{max}} - 1: \\\\
+ * & \qquad \left\lbrace s_i = i, \right. & \text{if } s_i = -1 \text{ and } E[i] \le -5 \\\\
+ * & \qquad \left\lbrace \begin{aligned}
+ *   e_i &= i, \\\\
+ *   &\text{Break,}
+ *  \end{aligned} \right. & \text{if } e_i = -1 \text{ and } E[i] \le -35 \\\\
+ * & \left\lbrace \begin{aligned}
+ *   R_{\text{t60}} &= 0, \\\\
+ *   S &= 0, \\\\
+ *   &\text{Return,}
+ *  \end{aligned} \right. & \text{if } s_i = -1 \text{ and } e_i = -1 \\\\
+ * f(i) &= i \cdot B \\\\
+ * x &= \sum_{i=s_i}^{e_i}(i \cdot B) \\\\
+ * y &= \sum_{i=s_i}^{e_i}E[i] \\\\
+ * x_y &= \sum_{i=s_i}^{e_i}(i \cdot B \cdot E[i]) \\\\
+ * x_x &= \sum_{i=s_i}^{e_i}(i \cdot B)^2 \\\\
+ * n &= e_i - s_i + 1 \\\\
+ * D &= (n \cdot x_x) - (x^2) \\\\
+ * & \left\lbrace \begin{aligned}
+ *  S &= \frac{(n \cdot x_y) - (x \cdot y)}{D}, \\\\
+ *  R_{\text{t60}} &= \frac{-60}{slope},
+ * \end{aligned} \right. & \text{if } D \neq 0 \\\\
+ * \end{align}
+ * @ingroup aprobe_group
+ * @param edc_db The EDC.
+ * @param probe The AudioProbe that is computing the IR.
+ * @param band The band to compute.
+ * @param bin_duration_seconds (for bins - unused so it's 1 / ::SAMPLE_RATE).
+ * @param last_sample The index of the sample binned at the furthest index.
+ * @todo Make sure it's safe to return early.
+ */ 
 static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_duration_seconds, int last_sample);
-static void process_probe_chunk(int start, int count, GLuint aprobe_ssbo);
+
+
+/**
+ * @brief Path traces from AudioProbe%s within a certain chunk of a ProbeVolume and processes samples per AudioProbe, forming a synthetic IR from the RT60.
+ * @anchor probe_bake_anchor
+ * @see extract_t60()
+ * @see compute_schroeder_edc()
+ * @see generate_synthetic_ir_tail()
+ * @ingroup aprobe_group
+ * @details
+ * \begin{align}
+ * I &= \text{Iterations} \\\\
+ * P &= \text{%Probe} \\\\
+ * P_x &= \text{%Probe %Array} \\\\
+ * B &= \text{%Bounces} \\\\
+ * M &= \text{%Material} \\\\
+ * S_{\text{rate}} &= \text{%Sample %Rate} \\\\
+ * S_{\text{max}} &= \text{%Maximum %Samples} \\\\
+ * Z &= \text{%Bands} \\\\
+ * G &= \text{%Audio %Kernel} \\\\
+ * L &= \text{%Synthetic %IR} \\\\
+ * \delta &= \text{%Slope} \\\\
+ * \Upsilon &= \text{%Speed %of %Sound} \\\\
+ * \chi &= \text{%Band %Impulses} \\\\
+ * F &= \text{%Fade} \\\\
+ * & \textbf{for } i = 0 \text{ to } I - 1: \\\\
+ * & \quad \textbf{for } j = 0 \text{ to } P_{\text{count}} - 1: \\\\
+ * & \qquad P = P_x[j] \\\\
+ * & \qquad \phi = \pi \cdot (3 - \sqrt 5) \\\\
+ * & \qquad y = 1 - \frac{2 \cdot (i + 0.5)}{I} \\\\
+ * & \qquad r = \sqrt(1 - y^2) \\\\
+ * & \qquad \theta = \phi \cdot i \\\\
+ * & \qquad \vec v = \begin{bmatrix} \cos{\theta} \cdot r \\\\ y \\\\ \sin{\theta} \cdot r \end{bmatrix} \\\\
+ * & \qquad O = P_{\text{pos}} \\\\
+ * & \qquad \textbf{for } k = 0 \text{ to } B - 1: \\\\
+ * & \qquad \quad R(t) = O + t\vec v \\\\
+ * & \qquad \quad t_{\text{hit}} = \left\lbrace \begin{aligned}
+ * & min({t \ge 0 | R(t) \in \mathcal S }), & \text{if }R(t) \text{ hits }\mathcal S\\\\
+ * & \infty, & \text{otherwise}
+ * \end{aligned} \right. \\\\
+ * & \qquad \quad \text{Break}, \text{if } t_{\text{hit}} = \infty  \\\\
+ * & \qquad \quad p = R(t_{\text{hit}}) \\\\
+ * & \qquad \quad t_n = \text{%Normal} (\mathcal S) \\\\
+ * & \qquad \quad M = \text{%Material} (\mathcal S) \\\\
+ * & \qquad \quad S_i = j \cdot (I \cdot B) + i \cdot B\\\\
+ * & \qquad \quad P_{\text{spos}}[S_i] = p \\\\
+ * & \qquad \quad P_{\text{sdir}}[S_i] = \vec v \\\\
+ * & \qquad \quad \vec v_x = || P_{\text{pos}} - p || \\\\
+ * & \qquad \quad P_{\text{stof}}[S_i] = \frac{(\sum_{o=0}^{k}t_{\text{hit}}) + \vec v_x}{\Upsilon} \\\\
+ * & \qquad \quad R(t) = O + t\vec v_x \\\\
+ * & \qquad \quad t_{\text{hit}} = \left\lbrace \begin{aligned}
+ * & min({t \ge 0 | R(t) \in \mathcal S }), & \text{if }R(t) \text{ hits }\mathcal S\\\\
+ * & \infty, & \text{otherwise}
+ * \end{aligned} \right. \\\\
+ * & \qquad \quad P_{\text{svalid}}[S_i] = 0, \text{if } t_{\text{hit}} \lt \vec v_x\\\\ 
+ * & \qquad \quad E_b = E_b \cdot (1 - M_{\text{abs}}) \\\\ 
+ * & \qquad \quad P_{\text{energy}}[S_i] = E_b * \gamma \\\\
+ * & \qquad \quad V(N) = \left\lbrace \begin{aligned}
+ *  & \tau_1, \tau_2 \in \sim \mathcal U [0, 1] \\\\
+ *  & \phi = 2 \pi \cot \tau_1 \\\\
+ *  & \vec v = \left\lbrack \begin{aligned}
+ *   & \cos(\phi) \cdot \sqrt{\tau_2}\\\\
+ *   & \sin(\phi) \cdot \sqrt{\tau_2}\\\\
+ *   & \sqrt{1 - \tau_2} \\\\
+ *  \end{aligned} \right\rbrack \\\\
+ *  & \left\lbrace \begin{aligned}
+ *   & \begin{aligned}
+ *    & T = \begin{bmatrix} 0 \\\\ -1 \\\\ 0 \end{bmatrix}\\\\
+ *    & B = \begin{bmatrix} -1 \\\\ 0 \\\\ 0 \end{bmatrix}\\\\
+ *   \end{aligned}, & \text{if } N_z < -0.99998796 \\\\ \\\\
+ *   & \begin{aligned}
+ *    & \alpha = \frac{1}{1+N_z}\\\\
+ *    & \beta = -N_x \cdot N_y \cdot \alpha \\\\
+ *    & T = \begin{bmatrix} 1 - N_x^2\alpha \\\\ \beta \\\\ -N_x \end{bmatrix}\\\\
+ *    & B = \begin{bmatrix} \beta \\\\ 1 - N_y^2\alpha \\\\ -N_y \end{bmatrix}\\\\
+ *   \end{aligned}, & \text{otherwise} \\\\ 
+ *  \end{aligned} \right\. \\\\ 
+ *  & M_n = \begin{bmatrix} T_x & B_x & N_x \\\\ T_y & B_y & N_y \\\\ T_z & B_z & N_z \end{bmatrix}\\\\
+ *  & ||M_n \cdot \vec v||
+ * \end{aligned} \right. \\\\
+ * & \qquad \quad \mu \in (0, 1) \\\\
+ * & \qquad \quad \left\lbrace \begin{aligned}
+ *  & \vec v = V(t_n), & \text{if } \mu \lt M_{\text{scattering}}\\\\
+ *  & \vec v = \vec v - 2(\vec v \cdot t_n)t_n, & otherwise 
+ *  \end{aligned} \right. \\\\
+ * & \textbf{for } j = 0 \text{ to } P_{\text{count}} - 1: \\\\
+ * & \quad P = P_x[j] \\\\
+ * & \quad \textbf{for } i = 0 \text{ to } I - 1: \\\\
+ * & \qquad \textbf{for } k = 0 \text{ to } B - 1: \\\\
+ * & \qquad \quad s_i = j \cdot (I \cdot B) + i \cdot B + k\\\\
+ * & \qquad \quad S = P_x[s_i]\\\\
+ * & \qquad \quad T = S_{\text{tof}} \cdot S_{\text{rate}} \\\\
+ * & \qquad \quad \text{continue, }\text{if } S \neq \text{valid} \text{ or } T \geq S_{\text{max}} - 1 \text{ or } T \lt 0\\\\
+ * & \qquad \quad H = \text{SH} (S_{\text{dir}}) \\\\
+ * & \qquad \quad S_x[T, o, f] = H[o] \cdot S_{\text{energy}}[f] \cdot \frac{4\pi}{I} \text{ for } o \in \lbrace0, ..., 8\rbrace \text{ and for } f \in \lbrace0, ..., Z_{\text{max}} - 1\rbrace \\\\
+ * & \qquad \quad E_0[T, b] = E_0[T, b] + S_{\text{abs energy}} \cdot \frac{4\pi}{I}\text{ for } b \in \lbrace 0, ..., B_{\text{max}} - 1 \rbrace \\\\
+ * & \quad \textbf{for } b = 0 \text{ to } B_{\text{max}} - 1: \\\\
+ * & \qquad E_1 = \text{EDC}(E_0) \\\\
+ * & \qquad (R_{\text{t60}}, \delta) = \text{RT60}(E_1) \\\\
+ * & \quad \textbf{for } k = 0 \text{ to } S_{\text{max}} - 1: \\\\
+ * & \qquad \textbf{let } \sigma \in -1, 1 \text{ be chosen uniformly at random}\\\\
+ * & \qquad \textbf{for } b = 0 \text{ to } B_{\text{max}} - 1: \\\\
+ * & \qquad \quad S_0 = S_x[k, 0, b] \\\\
+ * & \qquad \quad \text{continue, if } S_0 \leq 0.000001 \\\\
+ * & \qquad \quad E_{\text{total}} = \frac{S_0}{Y_00} \\\\
+ * & \qquad \quad B_{\text{amp}} = \sqrt{E_{\text{total}}} * \sigma \\\\
+ * & \qquad \quad S_r[n] = \frac{S_x[k, n, b]}{S_0} \text{ for n } \in \lbrace 0, ..., 8\rbrace\\\\
+ * & \qquad \quad \text{for } m = 0 \text{ to } G_{\text{size}} - 1: \\\\
+ * & \qquad \qquad X_i = k + m - G_{\text{center}} \\\\
+ * & \qquad \qquad \left\lbrace \begin{aligned}
+ * & \text{continue}, X_i \lt 0\\\\
+ * & \text{break}, X_i \geq S_{\text{max}} - 1 \\\\
+ * \end{aligned} \right. \\\\
+ * & \qquad \qquad P_{\text{ir}}[X_i, n] = P_{\text{ir}}[X_i, n] + \chi \cdot B_{\text{amp}} \cdot S_r[n] \text { for n } \in \lbrace 0, ..., 8\rbrace\\\\
+ * & \quad R = \text{RMS}(P) \\\\
+ * & \quad L = \text{SYNTHETIC}(P, RMS) \\\\
+ * & \quad x \in [F_{\text{start}}, S_{\text{max}}) \\\\
+ * & \quad \alpha = \min(\frac{x - F_{\text{start}}}{F_{\text{end}} - F_{\text{start}}}, 1) \\\\
+ * & \quad e = \cos(\alpha \cdot 0.5 \cdot \pi) \\\\
+ * & \quad l = \sin(\alpha \cdot 0.5 \cdot \pi) \\\\
+ * & \quad P_{\text{ir}}[x, 0] = P_{\text{ir}}[x, 0] \cdot e + L[x] \cdot l \\\\
+ * & \quad d \in \sim \mathcal U [-0.2, 0.2] \\\\
+ * & \quad P_{\text{ir}}[x, g] = P_{\text{ir}}[x, g] \cdot e + L[x] \cdot d \cdot l \text{ for } g \in \lbrace1, ..., 8\rbrace \\\\
+ * \end{align}
+ * @param start The first AudioProbe to process.
+ * @param count The amount of AudioProbe%s to process.
+ */ 
+static void process_probe_chunk(int start, int count);
 
 #define SAMPLE_IDX(i, sh, b) \
     (((i) * SH_MAX * AUDIO_NUM_BANDS) + ((sh) * AUDIO_NUM_BANDS) + (b)) \
@@ -181,11 +544,9 @@ static OpenNode heap_pop(Vector *h) {
 static void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end)
 {
 
-    
     int current = end;
     while (current != start)
     {
-
         if (WS->path_count >= MAX_PORTALS) break;
         WS->path[WS->path_count++] = current;
 
@@ -198,15 +559,12 @@ static void reconstruct_path_aportal(AStarWorkspace * WS, int start, int end)
         current = prev;
     }
     if (WS->path_count < MAX_PORTALS - 1) WS->path[WS->path_count++] = start;
-
-    
+   
     for (int i = 0; i < WS->path_count / 2; i++) {
         int tmp = WS->path[i];
         WS->path[i] = WS->path[WS->path_count-1-i];
         WS->path[WS->path_count-1-i] = tmp;
     }
-
-    
 
 }
 
@@ -567,7 +925,7 @@ static vec3 pos_to_pv_local(OBB *obb, vec3 pos)
     return vec3_add(norm, (vec3){0.5f, 0.5f, 0.5f});
 }
 
-static int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local)
+int query_audio_probe(ProbeVolume * pv, vec3 pos, ivec3 * out_local)
 {
     
     vec3 pv_local = pos_to_pv_local(&pv->obb, pos);
@@ -929,9 +1287,6 @@ static void generate_synthetic_IR_tail(float* out_tail, float fade_start, AudioP
 
     float unit_noise_scaler = 1.0f / 0.577350269f;
 
-    float lpf = 0.0f;
-
-
     for (int i = fade_start; i < MAX_IR_SAMPLES; i++) {
         
         float raw = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;
@@ -1022,6 +1377,7 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
     if (start_idx == -1 || end_idx == -1) {
         probe->rt60[band] = 0.0f;
         probe->slope[band] = 0.0f;
+        return;
     }
     
     float sum_x = 0.0f, sum_y = 0.0f, sum_xy = 0.0f, sum_xx = 0.0f;
@@ -1051,7 +1407,7 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
 }
 
 
-static void process_probe_chunk(int start, int count, GLuint aprobe_ssbo)
+static void process_probe_chunk(int start, int count)
 {
 
     int MAX_SAMPLES_PER_PROBE = EDITOR_SETTINGS.audio_probe_iterations * EDITOR_SETTINGS.audio_probe_bounces;
@@ -1384,7 +1740,7 @@ void bake_audio_probe_volume(ProbeVolume * pv)
             current_byte_size = BOUNCE_SSBO_BYTE_SIZE - chunk_count * SAMPLE_SSBO_CHUNK_SIZE;
         }
         int start = i * probes_per_chunk;
-        process_probe_chunk(start, probes_per_chunk, aprobe_ssbo);
+        process_probe_chunk(start, probes_per_chunk);
 
     }
 

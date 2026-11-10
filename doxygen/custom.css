@@ -2643,3 +2643,9 @@ details[open]>summary::before {
     font-weight: 700;
     font-style: bold;
 }
+
+
+.MathJax_Display, /* MathJax 2 */
+mjx-container     /* MathJax 3 */ {
+  text-align: left !important;
+}

@@ -1,35 +1,15 @@
 
+/**
+ * @file dynamic.frag
+ * @brief The main forward fragment shader.
+ */
 #extension GL_ARB_bindless_texture : require
 
-layout(location = 0)out vec4 fragColor;
-layout(std140, binding = 0) uniform CameraData {
-    vec4 cam_pos;
-    vec4 cam_vel;
-    mat4 projection;
-    mat4 unjittered_projection;
-    mat4 view;
-    mat4 inv_projection;
-    mat4 unjittered_inv_projection;
-    mat4 inv_view;
-};
-layout(std140, binding = 1) uniform RenderingData {
-    ivec4 resolution;
-};
-layout(std140, binding = 2) uniform LightCameraData {
-    mat4 light_proj[4];
-    mat4 light_view[4];
-};
 
-layout(std140, binding = 3) uniform RProbeData {
-
-    uint rprobe_indices[4];
-    uint rprobe_count;
-    uint pad0;
-    uint pad1;
-    uint pad2;
-
-};
-
+/**
+ * @brief Oriented Bounding Boxes.
+ * @ingroup shader_structs_group
+ */
 struct OBB
 {
     vec3 center;
@@ -45,10 +25,10 @@ struct OBB
     
 };
 
-layout(std140, binding = 6) uniform ProbeVolumeData{
-    OBB pvs[6];
-};
-
+/**
+ * @brief GPU Lights.
+ * @ingroup shader_structs_group
+ */
 struct Light
 {
     
@@ -78,6 +58,10 @@ struct Light
 
 };
 
+/**
+ * @brief GPU-side Material%s.
+ * @ingroup shader_structs_group
+ */
 struct Material
 {
     
@@ -109,6 +93,70 @@ struct Material
 
 };
 
+/**
+ * @brief GPU-side ReflectionProbe%s.
+ * @ingroup shader_structs_group
+ */
+struct RProbe
+{
+    vec3 center;
+    uint pad0;
+    vec3 min;
+    uint pad1;
+    vec3 max;
+    uint pad2;
+    
+};
+
+/**
+ * @brief GPU-side Cluster%s for clustered forward.
+ * @ingroup shader_structs_group
+ */
+struct Cluster
+{
+    
+    uint offset;
+    uint count;
+};
+
+
+
+layout(location = 0)out vec4 fragColor;
+layout(std140, binding = 0) uniform CameraData {
+    vec4 cam_pos;
+    vec4 cam_vel;
+    mat4 projection;
+    mat4 unjittered_projection;
+    mat4 view;
+    mat4 inv_projection;
+    mat4 unjittered_inv_projection;
+    mat4 inv_view;
+};
+layout(std140, binding = 1) uniform RenderingData {
+    ivec4 resolution;
+};
+layout(std140, binding = 2) uniform LightCameraData {
+    mat4 light_proj[4];
+    mat4 light_view[4];
+};
+
+layout(std140, binding = 3) uniform RProbeData {
+
+    uint rprobe_indices[4];
+    uint rprobe_count;
+    uint pad0;
+    uint pad1;
+    uint pad2;
+
+};
+
+
+layout(std140, binding = 6) uniform ProbeVolumeData{
+    OBB pvs[6];
+};
+
+
+
 layout(std430, binding = 0) buffer LightData {
 
     Light lights[];
@@ -131,16 +179,6 @@ layout(std430, binding = 3) buffer LightmapData {
     vec4 uvs[];
 
 };
-struct RProbe
-{
-    vec3 center;
-    uint pad0;
-    vec3 min;
-    uint pad1;
-    vec3 max;
-    uint pad2;
-    
-};
 layout(std430, binding = 10) buffer RProbeSSBO {
 
     RProbe rprobes[10];
@@ -149,12 +187,6 @@ layout(std430, binding = 10) buffer RProbeSSBO {
 
 layout(std430, binding = 13) buffer GlobalLightIndexData {
     uint global_light_indices[];
-};
-struct Cluster
-{
-    
-    uint offset;
-    uint count;
 };
 
 layout(std430, binding = 14) buffer ClusterData {
@@ -327,6 +359,13 @@ float distribution_GGX(float NdotH, float roughness)
     return a2 / (PI * d * d + 0.00001);
 }
 
+/**
+ * @brief Computes Schlick's approximation for Fresnel reflectance.
+ * \f{eqnarray*}
+ * F(\theta) &=& F_0 + (1 - F_0)(1 - \cos\theta)^5 \\
+ * \text{where } \cos\theta &=& \max(0, \omega_h \cdot v)
+ * \f}
+ */ 
 vec3 fresnel_schlick(float CosTheta, vec3 F0)
 {
     float fc = 1.0 - CosTheta;
@@ -508,6 +547,17 @@ float linearize(float z)
     return (2.0 * near) / (far + near - z * (far - near));
 }
 
+/**
+ * @brief Converts a position to local OBB space and returns the coord as if it was a texture from \f$0 \rightarrow 1\f$.
+ * \begin{align}
+ * p &= \mathrm{Position} \\\\
+ * c &= \mathrm{Center} \\\\
+ * l &= \mathrm{Length} \\\\
+ * \Delta &= p - c \\\\
+ * n &= \mathbf{M^r}\mathbf{\Delta} \\\\
+ * &= (\frac{n}{l}) * 0.5
+ * \end{align}
+ */ 
 vec3 pos_to_pv_local(OBB obb, vec3 pos)
 {
     
@@ -517,6 +567,7 @@ vec3 pos_to_pv_local(OBB obb, vec3 pos)
     vec3 norm = unrotated / (obb.extents * 2.0f);
     return norm + 0.5f;
 }
+
 #define LPV_SLOTS 6
 #define SH_MAX 9
 void main()

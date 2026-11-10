@@ -1,11 +1,51 @@
 
+/**
+ * @file audio_ir.c
+ * @brief Audio IR processing, hrtf loading and parsing, and audio threading.
+ * @see init.c for the audio thread convolution.
+ */
 #include "utilities/types.h"
 #include "load/init.h"
 #include "utilities/mathf.h"
 
 
+/**
+ * @brief Allocates ::AUDIO_SCRATCH based on HRTF size.
+ * @ingroup aprobe_group
+ * @param hrtf_length The length of the loaded HRTF.
+ */ 
 static void allocate_audio_scratch_hrtf(int hrtf_length);
+
+/**
+ * @brief Rotates neighboring IRs to the Player and then partitions them for convolution in the audio thread.
+ * @details 
+ * \begin{align}
+ * X_i &= \mathrm{IR[]} \\\\
+ * l &= \mathrm{IR\ Length} \\\\
+ * c_l &= \mathrm{Complex\ Length} \\\\
+ * M^r &= \mathrm{%Player\ Rotation} \\\\
+ * b &= \mathrm{%Block\ Size} \\\\
+ * p &= \mathrm{%Partiton\ Count} \\\\
+ * P_o &= \mathrm{%Partitions\ Out} \\\\
+ * X_r &= \sum_{i=0}^{l}(D^\ell(M^r)X_i)\\\\
+ * X_f &= \mathrm{FFT}(X_r) \\\\
+ * X_t &= \sum_{s=0}^{c_l}(a + bi)(c + di) = (ac - bd) + (ad + bc)i \\\\
+ * X_o &= ||\mathrm{IFFT}(X_t)|| \\\\
+ * & \textbf{for } i \in{}[0,p) \textbf{ do}\\\\
+ * & \quad \textbf{for } k \in{}[0,b) \textbf{ do}\\\\
+ * & \qquad Y_i[k] = X_o[i * b + k] \\\\
+ * & \quad P_o = \mathrm{FFT}(Y_i) \\\\
+ * \end{align}
+ * @ingroup aprobe_group
+ * @param OUT The PartitionTable to write into.
+ */ 
 static void update_player_ir(PartitionTable * OUT);
+
+/**
+ * @brief Main thread loop for HRTFThreadData. Waits for a job and then executes the job, which is calling update_player_ir().
+ * @ingroup aprobe_group
+ * @param params The HRTFThreadData.
+ */ 
 static int SDLCALL hrtf_worker(void * params);
 
 void evaluate_sh(vec3 dir, float SH[SH_MAX])
@@ -89,6 +129,12 @@ void load_hrtf_from_binary(const char * filename)
 }
 
 
+/**
+ * @brief Applies an impulse response filter via discrete convolution.
+ * \f[
+ * (x * h)[n] = \sum_{m=-\infty}^{\infty} x[m] \, h[n - m]
+ * \f]
+ */ 
 void fft_channels(ConvolverNode * node, bool crossfading)
 {
     
@@ -159,6 +205,31 @@ void fft_channels(ConvolverNode * node, bool crossfading)
     
 }
 
+/**
+ * @brief Converts a position to local OBB space and returns the coord as if it was a texture from \f$0 \rightarrow 1\f$.
+ * @ingroup aprobe_group
+ * \begin{align}
+ * X_i &= \mathrm{IR[]} \\\\
+ * l &= \mathrm{IR\ Length} \\\\
+ * c_l &= \mathrm{Complex\ Length} \\\\
+ * M^r &= \mathrm{%Player\ Rotation} \\\\
+ * b &= \mathrm{%Block\ Size} \\\\
+ * p &= \mathrm{%Partiton\ Count} \\\\
+ * P_o &= \mathrm{%Partitions\ Out} \\\\
+ * X_r &= \sum_{i=0}^{l}(X_iM^r)\\\\
+ * X_f &= \mathrm{FFT}(X_r) \\\\
+ * X_t &= \sum_{s=0}^{c_l}(a + bi)(c + di) = (ac - bd) + (ad + bc)i \\\\
+ * X_o &= ||\mathrm{IFFT}(X_t)|| \\\\
+ * \end{align}
+ * \f[
+ * \begin{aligned}
+ * \textbf{for } i \in{}[0,p) \textbf{ do}\\\\
+ * \textbf{for } k \in{}[0,b) \textbf{ do}\\\\
+ * Y_i[k] = X_o[i * b + k] \\\\
+ * P_o = \mathrm{FFT}(Y_i) \\\\
+ * \end{aligned}
+ * \f]
+ */ 
 // CODE FROM JOHN HABLE
 void rotate_sh(float * OUT, float SH[SH_MAX], mat3 rot)
 {
@@ -254,7 +325,6 @@ void rotate_sh(float * OUT, float SH[SH_MAX], mat3 rot)
 
 static void update_player_ir(PartitionTable * OUT)
 {
-
 
 
     SDL_LockMutex(AUDIO_SCRATCH.aprobe_mutex);

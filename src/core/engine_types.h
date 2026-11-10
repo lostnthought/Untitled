@@ -23,6 +23,13 @@
 #include "utilities/types.h"
 
 /**
+ * @defgroup shader_structs_group Shader Structures
+ * @brief Avoids polluting main C namespaces.
+ * @{
+ */
+/** @} */
+
+/**
  * @defgroup audio_group Audio System
  * @brief All of the required structures for the AudioEmitter system.
  * @{
