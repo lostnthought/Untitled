@@ -238,6 +238,7 @@ static float extract_rms(AudioProbe * probe, int fade_start, int window_size);
 
 /**
  * @brief Extracts the RT60 from an EDC for computing a synthetic IR.
+ * @todo Write otherwise case for the end.
  * @details
  * \begin{align}
  * L_{\text{max}} &= \text{%Last %Sample} \\\\
@@ -360,7 +361,7 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  *  & \vec v = ||M_n \cdot \vec v|| \\\\
  *  & \frac{\vec v}{||\vec v||}
  * \end{aligned} \right. \\\\
- * & \qquad \quad \mu \in (0, 1) \\\\
+ * & \qquad \quad \mu \in \sim \mathcal U [0, 1] \\\\
  * & \qquad \quad \left\lbrace \begin{aligned}
  *  & \vec v = V(t_n), & \text{if } \mu \lt M_{\text{scattering}}\\\\
  *  & \vec v = \vec v - 2(\vec v \cdot t_n)t_n, & otherwise 
