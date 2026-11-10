@@ -226,7 +226,7 @@ static void compute_schroeder_edc(float* energy_histogram, float* edc_out);
  * S &= \text{%Start} \\\\
  * F &= \text{%Fade %Start} \\\\ 
  * X &= \text{%IR %Samples} \\\\ 
- * &= \sqrt(\frac{\sum_{i=S}^{F-1}X^2}{F-S}) \\\\
+ * &= \sqrt{\frac{\sum_{i=S}^{F-1}X^2}{F-S}} \\\\
  * \end{align}
  * @ingroup aprobe_group
  * @param probe The AudioProbe with samples.
@@ -291,8 +291,8 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  * @details
  * \begin{align}
  * I &= \text{Iterations} \\\\
- * P &= \text{%Probe} \\\\
- * P_x &= \text{%Probe %Array} \\\\
+ * P &= \text{%Probe %Array} \\\\
+ * p &= \text{%Probe} \\\\
  * B &= \text{%Bounces} \\\\
  * M &= \text{%Material} \\\\
  * S_{\text{rate}} &= \text{%Sample %Rate} \\\\
@@ -306,13 +306,13 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  * F &= \text{%Fade} \\\\
  * & \textbf{for } i = 0 \text{ to } I - 1: \\\\
  * & \quad \textbf{for } j = 0 \text{ to } P_{\text{count}} - 1: \\\\
- * & \qquad P = P_x[j] \\\\
+ * & \qquad p = P[j] \\\\
  * & \qquad \phi = \pi \cdot (3 - \sqrt 5) \\\\
  * & \qquad y = 1 - \frac{2 \cdot (i + 0.5)}{I} \\\\
- * & \qquad r = \sqrt(1 - y^2) \\\\
+ * & \qquad r = \sqrt{1 - y^2} \\\\
  * & \qquad \theta = \phi \cdot i \\\\
  * & \qquad \vec v = \begin{bmatrix} \cos{\theta} \cdot r \\\\ y \\\\ \sin{\theta} \cdot r \end{bmatrix} \\\\
- * & \qquad O = P_{\text{pos}} \\\\
+ * & \qquad O = p_{\text{pos}} \\\\
  * & \qquad \textbf{for } k = 0 \text{ to } B - 1: \\\\
  * & \qquad \quad R(t) = O + t\vec v \\\\
  * & \qquad \quad t_{\text{hit}} = \left\lbrace \begin{aligned}
@@ -320,22 +320,22 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  * & \infty, & \text{otherwise}
  * \end{aligned} \right. \\\\
  * & \qquad \quad \text{Break}, \text{if } t_{\text{hit}} = \infty  \\\\
- * & \qquad \quad p = R(t_{\text{hit}}) \\\\
+ * & \qquad \quad x = R(t_{\text{hit}}) \\\\
  * & \qquad \quad t_n = \text{%Normal} (\mathcal S) \\\\
  * & \qquad \quad M = \text{%Material} (\mathcal S) \\\\
- * & \qquad \quad S_i = j \cdot (I \cdot B) + i \cdot B\\\\
- * & \qquad \quad P_{\text{spos}}[S_i] = p \\\\
- * & \qquad \quad P_{\text{sdir}}[S_i] = \vec v \\\\
- * & \qquad \quad \vec v_x = || P_{\text{pos}} - p || \\\\
- * & \qquad \quad P_{\text{stof}}[S_i] = \frac{(\sum_{o=0}^{k}t_{\text{hit}}) + \vec v_x}{\Upsilon} \\\\
+ * & \qquad \quad S = p_{\text{sample}}[i, k]\\\\
+ * & \qquad \quad S_{\text{pos}} = x \\\\
+ * & \qquad \quad S_{\text{dir}} = \vec v \\\\
+ * & \qquad \quad \vec v_x = || p_{\text{pos}} - x || \\\\
+ * & \qquad \quad S_{\text{tof}} = \frac{(\sum_{o=0}^{k}t_{\text{hit}}) + \vec v_x}{\Upsilon} \\\\
  * & \qquad \quad R(t) = O + t\vec v_x \\\\
  * & \qquad \quad t_{\text{hit}} = \left\lbrace \begin{aligned}
  * & min({t \ge 0 | R(t) \in \mathcal S }), & \text{if }R(t) \text{ hits }\mathcal S\\\\
  * & \infty, & \text{otherwise}
  * \end{aligned} \right. \\\\
- * & \qquad \quad P_{\text{svalid}}[S_i] = 0, \text{if } t_{\text{hit}} \lt \vec v_x\\\\ 
+ * & \qquad \quad S_{\text{valid}} = 0, \text{if } t_{\text{hit}} \lt \vec v_x\\\\ 
  * & \qquad \quad E_b = E_b \cdot (1 - M_{\text{abs}}) \\\\ 
- * & \qquad \quad P_{\text{energy}}[S_i] = E_b * \gamma \\\\
+ * & \qquad \quad S_{\text{energy}} = E_b * \gamma \\\\
  * & \qquad \quad V(N) = \left\lbrace \begin{aligned}
  *  & \tau_1, \tau_2 \in \sim \mathcal U [0, 1] \\\\
  *  & \phi = 2 \pi \cot \tau_1 \\\\
@@ -357,7 +357,8 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  *   \end{aligned}, & \text{otherwise} \\\\ 
  *  \end{aligned} \right\. \\\\ 
  *  & M_n = \begin{bmatrix} T_x & B_x & N_x \\\\ T_y & B_y & N_y \\\\ T_z & B_z & N_z \end{bmatrix}\\\\
- *  & ||M_n \cdot \vec v||
+ *  & \vec v = ||M_n \cdot \vec v|| \\\\
+ *  & \frac{\vec v}{||\vec v||}
  * \end{aligned} \right. \\\\
  * & \qquad \quad \mu \in (0, 1) \\\\
  * & \qquad \quad \left\lbrace \begin{aligned}
@@ -365,15 +366,14 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  *  & \vec v = \vec v - 2(\vec v \cdot t_n)t_n, & otherwise 
  *  \end{aligned} \right. \\\\
  * & \textbf{for } j = 0 \text{ to } P_{\text{count}} - 1: \\\\
- * & \quad P = P_x[j] \\\\
+ * & \quad p = P[j] \\\\
  * & \quad \textbf{for } i = 0 \text{ to } I - 1: \\\\
  * & \qquad \textbf{for } k = 0 \text{ to } B - 1: \\\\
- * & \qquad \quad s_i = j \cdot (I \cdot B) + i \cdot B + k\\\\
- * & \qquad \quad S = P_x[s_i]\\\\
+ * & \qquad \quad S = p_{\text{sample}}[i, k]\\\\
  * & \qquad \quad T = S_{\text{tof}} \cdot S_{\text{rate}} \\\\
- * & \qquad \quad \text{continue, }\text{if } S \neq \text{valid} \text{ or } T \geq S_{\text{max}} - 1 \text{ or } T \lt 0\\\\
+ * & \qquad \quad \text{continue, }\text{if } S_{\text{valid}} = 0 \text{ or } T \geq S_{\text{max}} - 1 \text{ or } T \lt 0\\\\
  * & \qquad \quad H = \text{SH} (S_{\text{dir}}) \\\\
- * & \qquad \quad S_x[T, o, f] = H[o] \cdot S_{\text{energy}}[f] \cdot \frac{4\pi}{I} \text{ for } o \in \lbrace0, ..., 8\rbrace \text{ and for } f \in \lbrace0, ..., Z_{\text{max}} - 1\rbrace \\\\
+ * & \qquad \quad p_{\text{ir}}[T, o, f] = H[o] \cdot S_{\text{energy}}[f] \cdot \frac{4\pi}{I} \text{ for } o \in \lbrace0, ..., 8\rbrace \text{ and for } f \in \lbrace0, ..., Z_{\text{max}} - 1\rbrace \\\\
  * & \qquad \quad E_0[T, b] = E_0[T, b] + S_{\text{abs energy}} \cdot \frac{4\pi}{I}\text{ for } b \in \lbrace 0, ..., B_{\text{max}} - 1 \rbrace \\\\
  * & \quad \textbf{for } b = 0 \text{ to } B_{\text{max}} - 1: \\\\
  * & \qquad E_1 = \text{EDC}(E_0) \\\\
@@ -381,27 +381,27 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  * & \quad \textbf{for } k = 0 \text{ to } S_{\text{max}} - 1: \\\\
  * & \qquad \textbf{let } \sigma \in -1, 1 \text{ be chosen uniformly at random}\\\\
  * & \qquad \textbf{for } b = 0 \text{ to } B_{\text{max}} - 1: \\\\
- * & \qquad \quad S_0 = S_x[k, 0, b] \\\\
+ * & \qquad \quad S_0 = p_{\text{ir}}[k, 0, b] \\\\
  * & \qquad \quad \text{continue, if } S_0 \leq 0.000001 \\\\
  * & \qquad \quad E_{\text{total}} = \frac{S_0}{Y_00} \\\\
  * & \qquad \quad B_{\text{amp}} = \sqrt{E_{\text{total}}} * \sigma \\\\
- * & \qquad \quad S_r[n] = \frac{S_x[k, n, b]}{S_0} \text{ for n } \in \lbrace 0, ..., 8\rbrace\\\\
+ * & \qquad \quad S_r[n] = \frac{p_{\text{ir}}[k, n, b]}{S_0} \text{ for n } \in \lbrace 0, ..., 8\rbrace\\\\
  * & \qquad \quad \text{for } m = 0 \text{ to } G_{\text{size}} - 1: \\\\
  * & \qquad \qquad X_i = k + m - G_{\text{center}} \\\\
  * & \qquad \qquad \left\lbrace \begin{aligned}
  * & \text{continue}, X_i \lt 0\\\\
  * & \text{break}, X_i \geq S_{\text{max}} - 1 \\\\
  * \end{aligned} \right. \\\\
- * & \qquad \qquad P_{\text{ir}}[X_i, n] = P_{\text{ir}}[X_i, n] + \chi \cdot B_{\text{amp}} \cdot S_r[n] \text { for n } \in \lbrace 0, ..., 8\rbrace\\\\
- * & \quad R = \text{RMS}(P) \\\\
- * & \quad L = \text{SYNTHETIC}(P, RMS) \\\\
- * & \quad x \in [F_{\text{start}}, S_{\text{max}}) \\\\
- * & \quad \alpha = \min(\frac{x - F_{\text{start}}}{F_{\text{end}} - F_{\text{start}}}, 1) \\\\
- * & \quad e = \cos(\alpha \cdot 0.5 \cdot \pi) \\\\
- * & \quad l = \sin(\alpha \cdot 0.5 \cdot \pi) \\\\
- * & \quad P_{\text{ir}}[x, 0] = P_{\text{ir}}[x, 0] \cdot e + L[x] \cdot l \\\\
- * & \quad d \in \sim \mathcal U [-0.2, 0.2] \\\\
- * & \quad P_{\text{ir}}[x, g] = P_{\text{ir}}[x, g] \cdot e + L[x] \cdot d \cdot l \text{ for } g \in \lbrace1, ..., 8\rbrace \\\\
+ * & \qquad \qquad p_{\text{fir}}[X_i, n] = p_{\text{fir}}[X_i, n] + \chi[b, m] \cdot B_{\text{amp}} \cdot S_r[n] \text { for n } \in \lbrace 0, ..., 8\rbrace\\\\
+ * & \quad R = \text{RMS}(p) \\\\
+ * & \quad L = \text{SYNTHETIC}(p, RMS) \\\\
+ * & \quad \text{for }x = F_{\text{start}} \text{ to } S_{\text{max}} - 1: \\\\
+ * & \qquad \alpha = \min(\frac{x - F_{\text{start}}}{F_{\text{end}} - F_{\text{start}}}, 1) \\\\
+ * & \qquad e = \cos(\alpha \cdot 0.5 \cdot \pi) \\\\
+ * & \qquad l = \sin(\alpha \cdot 0.5 \cdot \pi) \\\\
+ * & \qquad p_{\text{fir}}[x, 0] = p_{\text{fir}}[x, 0] \cdot e + L[x] \cdot l \\\\
+ * & \qquad d \in \sim \mathcal U [-0.2, 0.2] \\\\
+ * & \qquad p_{\text{fir}}[x, g] = p_{\text{fir}}[x, g] \cdot e + L[x] \cdot d \cdot l \text{ for } g \in \lbrace1, ..., 8\rbrace \\\\
  * \end{align}
  * @param start The first AudioProbe to process.
  * @param count The amount of AudioProbe%s to process.
