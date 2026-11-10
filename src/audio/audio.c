@@ -358,7 +358,7 @@ static void extract_t60(float * edc_db, AudioProbe * probe, int band, float bin_
  *   \end{aligned}, & \text{otherwise} \\\\ 
  *  \end{aligned} \right\. \\\\ 
  *  & M_n = \begin{bmatrix} T_x & B_x & N_x \\\\ T_y & B_y & N_y \\\\ T_z & B_z & N_z \end{bmatrix}\\\\
- *  & \vec v = ||M_n \cdot \vec v|| \\\\
+ *  & \vec v = M_n \cdot \vec v \\\\
  *  & \frac{\vec v}{||\vec v||}
  * \end{aligned} \right. \\\\
  * & \qquad \quad \mu \in \sim \mathcal U [0, 1] \\\\
