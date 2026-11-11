@@ -11,7 +11,219 @@
  * @addtogroup physics_group 
  * @{
  */
-void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW)
+
+
+/**
+ * @brief Checks what faces are visible from given point (by dotting the normal).
+ * @details
+ * \f$(p - a) \cdot \vec n\f$
+ * @param p The point to check.
+ * @param EW The EPA workspace to store the visible indices into.
+ */
+static void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW);
+
+/**
+ * @brief Counts edges of each visible face and tests to see if they have matched already within the horizon_edges arraw.
+ * @param face The face to add.
+ * @param EW The EPA workspace to store the visible indices into.
+ */
+static void EPA_check_horizon_edges(MeshFace * face, EPAWorkspace * EW);
+
+/**
+ * @brief Adds a horizon face to to the main faces array, while making sure the normal is facing outward.
+ * @param p_idx The original support point index.
+ * @param e The horizon visible edge to add.
+ * @param EW The EPA workspace to store the visible indices into.
+ * @param center The center of the EPA polyhedron.
+ * @returns True if the face was added correctly.
+ */
+static bool EPA_add_horizon_face_to_hull_faces(size_t p_idx, HorizonEdge e, EPAWorkspace * EW, vec3 center);
+
+/**
+ * @brief Conducts EPA on a given hull with a support point.
+ * @param p The support point.
+ * @param index The index of the support point.
+ * @param EW The EPA workspace to store the visible indices into.
+ * @param centroid The center of the polyhedron (hull).
+ */
+static void EPA_expand_hull
+    (
+        vec3 p,
+        int index,
+        EPAWorkspace * EW,
+        vec3 centroid
+    );
+
+/**
+ * @brief The support function for a ::COL_CAPSULE.
+ * @param cap The CapsuleData inside of CollisionData.
+ * @param dir The support direction.
+ * @param inv The inv matrix transform of this collision body.
+ * @returns The support point.
+ */
+static vec3 support_capsule(CapsuleData* cap, vec3 dir, mat4 inv);
+
+/**
+ * @brief The support function for a ConvexHull or triangle Mesh.
+ * @details
+ * \begin{equation*}
+ * S_A(v) = \left\lbrace \begin{aligned}
+ * \vec d &= \begin{bmatrix}\vec{v_x} \\\\ \vec{v_y} \\\\ \vec{v_z} \\\\ 0\end{bmatrix} \\\\
+ * \vec d\prime &= Md \\\\
+ * & \text{arg} \max\limits_{p \in A}(p \cdot d\prime)
+ * \end{aligned} \right. 
+ * \text{Where A is the shape whose points, p, are tested against direction d.}
+ * \end{equation*}
+ * @param v The pointer to the resulting support vertex.
+ * @param index The pointer to the resulting index of the support vertex.
+ * @param verts The vertices to consider.
+ * @param cnt The amount of vertices to consider.
+ * @param inv The inv matrix transform of this collision body.
+ * @param dir The support direction.
+ */
+static void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 inv, vec3 dir);
+
+/**
+ * @brief Finds support points for A and B and then finds the difference.
+ * @details
+ * \begin{equation*}
+ * p = M_a\begin{bmatrix}a_x \\\\ a_y \\\\ a_z \\\\ 1\end{bmatrix} - M_b\begin{bmatrix}b_x \\\\ b_y \\\\ b_z \\\\ 1\end{bmatrix}
+ * \end{equation*}
+ * @param a_cd A's CollisionData.
+ * @param b_cd B's CollisionData.
+ * @param a_mat A's transform.
+ * @param b_mat B's transform.
+ * @param a_inv A's transform.
+ * @param b_inv B's transform.
+ * @param dir The support direction.
+ * @returns The resulting SupportVertex.
+ */
+static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir);
+
+/**
+ * @brief The Expanding Polytope Algorithm - expands a polytope in a loop as it becomes a polyhedron.
+ * @param a_cd A's CollisionData.
+ * @param b_cd B's CollisionData.
+ * @param a_mat A's transform.
+ * @param b_mat B's transform.
+ * @param a_inv A's transform.
+ * @param b_inv B's transform.
+ * @param s The initial Simplex from GJK().
+ * @param EW The EPA workspace to store the visible indices into.
+ * @returns The resulting CollisionPoints.
+ */
+static CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW);
+
+/**
+ * @brief Adds a point to the simplex by placing it at the bottom and shifting the other points forward.
+ * @param s The current Simplex from GJK().
+ * @param p The SupportVertex to add.
+ */
+static void add_point_to_simplex(Simplex * s, SupportVertex p);
+
+/**
+ * @brief Adds a point to the simplex by placing it at the bottom and shifting the other points forward.
+ * @param s The current Simplex from GJK().
+ * @param p The SupportVertex to add.
+ */
+static void remove_point_from_simplex(Simplex * s, int i);
+/**
+ * @brief Replaces Simplex with another array of SupportVertex. (Used to swap in the final GJK cases.)
+ * @param s The current Simplex from GJK().
+ * @param abcd The SupportVertex array that replaces s.
+ * @param count The amount of abcd points.
+ */
+static void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count);
+
+/**
+ * @brief Finds next direction in GJK() by pointing away from current points
+ * @todo Case 2: Notate direction vector crossing with safe axis
+ * @todo Remove simplex centroid and d, unneeded
+ * @todo Redundant code here, test and remove
+ * @details
+ * \begin{equation*}
+ * \vec v = \begin{cases}
+ * -S_a, & \text{if } C = 1\\\\
+ * \left.
+ * \begin{aligned}
+ * \mathit{AB} &= S_b - S_a, \\\\
+ * \mathit{AO} &= -S_a, \\\\
+ * & \begin{cases}
+ * \left.
+ * \begin{aligned}
+ * & \text{REMOVE}(B) \\\\
+ * & \mathit{AO}
+ * \end{aligned} \right\}, & \text{if } \mathit{AB} \cdot \mathit{AO} \lt 0 \\\\
+ * \begin{aligned}
+ * & (\mathit{AB} \times \mathit{AO}) \times \mathit{AB}, \\\\
+ * \end{aligned} & \text{otherwise} \\\\
+ * \end{cases} 
+ * \end{aligned} 
+ * \right\}, & \text{if } C = 2 \\\\
+ * \left.
+ * \begin{aligned}
+ * \vec{N} &= (S_B - S_a) \times (S_c - S_a) \\\\
+ * \hat{N} &= \frac{\vec{N}}{||\vec{N}||}  \\\\
+ * \mathit{AB} &= S_b - S_a \\\\
+ * \mathit{AC} &= S_c - S_a \\\\
+ * \mathit{AO} &= -S_a \\\\
+ * \mathit{AB}_p &= \mathit{AB} \times \hat{N} \\\\
+ * \mathit{AC}_p &= \hat{N} \times \mathit{AC} \\\\
+ * \mathit{AC}_d &= \mathit{AC}_p \cdot \mathit{AO} \\\\
+ * & \left. \begin{aligned}
+ * & \begin{cases}
+ * & \left. \begin{aligned}
+ *   & \text{REMOVE}(B) \\\\
+ *   & (\mathit{AC} \times \mathit{AO}) \times \mathit{AC} \\\\
+ *   \end{aligned} \right\}, & \text{if } \mathit{AC} \cdot \mathit{AO} \gt 0 \\\\
+ *   & (\mathit{AB} \times \mathit{AO}) \times \mathit{AB}, & \text{otherwise} \\\\
+ *   \end{cases} \\\\
+ *  \end{aligned} \right\}, & \text{if } \mathit{AC}_d \gt 0 \\\\
+ * \mathit{AB}_d &= \mathit{AB}_p \cdot \mathit{AO} \\\\
+ * &\left. \begin{aligned}
+ *   & \text{REMOVE}(S_c) \\\\
+ *   & (\mathit{AB} \times \mathit{AO}) \times \mathit{AB} \\\\
+ *  \end{aligned} \right\}, & \text{if } \mathit{AB}_d \gt 0 \text{ and } \mathit{AB} \cdot \mathit{AO} \gt 0 \\\\
+ * & \left\lbrace \begin{aligned}
+ * & \hat{N}, & \text{if } \hat{N} \cdot \mathit{AO} \gt 0 \\\\
+ * & \left. \begin{aligned}
+ * & (S_c, S_b) \mapsto (S_b, S_c) \\\\
+ * & -\hat{N} \\\\
+ * \end{aligned} \right\}, & \text{otherwise} \\\\
+ * \end{aligned} \right. \\\\
+ * \end{aligned}
+ * \right\}, & \text{if } C = 3 \\\\
+ * \left. \begin{aligned}
+ * \mathit{AO} &= -S_a \\\\
+ * \mathit{ABC} &= (S_b - S_a) \times (S_c - S_a) \\\\
+ * &\left. \begin{aligned}
+ * & \text{REMOVE}(D) \\\\
+ * & \mathit{ABC}
+ * \end{aligned} \right\}, & \text{if } \mathit{ABC} \cdot \mathit{AO} \gt 0 \\\\
+ * \mathit{ACD} &= (S_c - S_a) \times (S_d - S_a) \\\\
+ * &\left. \begin{aligned}
+ * & \text{REMOVE}(B) \\\\
+ * & \mathit{ACD}
+ * \end{aligned} \right\}, & \text{if } \mathit{ACD} \cdot \mathit{AO} \gt 0 \\\\
+ * \mathit{ADB} &= (S_d - S_a) \times (S_b - S_a) \\\\
+ * &\left. \begin{aligned}
+ * & (S_b, S_c) \mapsto (S_d, S_b) \\\\
+ * & C = C - 1 \\\\
+ * & \mathit{ADB} \\\\
+ * \end{aligned} \right\}, & \text{if } \mathit{ADB} \cdot \mathit{AO} \gt 0 \\\\
+ * \end{aligned} \right\}, & \text{if } C = 4 \\\\
+ * \end{cases} \\\\
+ * \begin{aligned}
+ * \vec{v} &= \vec v_\perp, & \text{if } \vec{v} \text{ has not been assigned.} \\\\
+ * & \text{Where } v_\perp \text{ is the sentinel value that signals a complete simplex.} \\\\
+ * \end{aligned}
+ * \end{equation*}
+ * @param s The current Simplex from GJK().
+ * @returns The resulting direction.
+ */
+static vec3 find_next_direction(Simplex * sn);
+ 
+static void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW)
 {
     for (int f = 0; f < EW->indices_count; f++)
     {
@@ -28,7 +240,7 @@ void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW)
 
 
 
-void EPA_check_horizon_edges(MeshFace * face, EPAWorkspace * EW)
+static void EPA_check_horizon_edges(MeshFace * face, EPAWorkspace * EW)
 {
 
     float eps = 0.001f;
@@ -68,7 +280,7 @@ void EPA_check_horizon_edges(MeshFace * face, EPAWorkspace * EW)
 
 
 
-bool EPA_add_horizon_face_to_hull_faces(size_t p_idx, HorizonEdge e, EPAWorkspace * EW, vec3 center)
+static bool EPA_add_horizon_face_to_hull_faces(size_t p_idx, HorizonEdge e, EPAWorkspace * EW, vec3 center)
 {
     
     vec3 A = EW->vertices[p_idx].p;
@@ -111,7 +323,7 @@ bool EPA_add_horizon_face_to_hull_faces(size_t p_idx, HorizonEdge e, EPAWorkspac
 }
 
 
-void EPA_expand_hull
+static void EPA_expand_hull
     (
         vec3 p,
         int index,
@@ -161,7 +373,7 @@ void EPA_expand_hull
 }
 
 
-vec3 support_capsule(CapsuleData* cap, vec3 dir, mat4 inv) {
+static vec3 support_capsule(CapsuleData* cap, vec3 dir, mat4 inv) {
     dir = mat4_mul_direction(inv, dir);
     if (vec3_length(dir) <= 1e-6)
     {
@@ -178,7 +390,7 @@ vec3 support_capsule(CapsuleData* cap, vec3 dir, mat4 inv) {
     return vec3_add(furthest_line_point, sphere_offset);
 }
 
-void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 model_matrix, mat4 inv, vec3 dir)
+static void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 inv, vec3 dir)
 {
     
     float best_dot = -INFINITY;
@@ -203,18 +415,17 @@ void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 model_matr
     *index = best_idx;
 }
 
-SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir)
+static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir)
 {
 
     SupportVertex p;
     switch(a_cd.type)
     {
         case COL_TRIANGLE:
-
-            support(&p.a, &p.index_a, a_cd.data.hull.pts, a_cd.data.hull.count, a_mat, a_inv, dir);
+            support(&p.a, &p.index_a, a_cd.data.hull.pts, a_cd.data.hull.count, a_inv, dir);
             break;
         case COL_HULL:
-            support(&p.a, &p.index_a, a_cd.data.hull.pts, a_cd.data.hull.count, a_mat, a_inv, dir);
+            support(&p.a, &p.index_a, a_cd.data.hull.pts, a_cd.data.hull.count, a_inv, dir);
             break;
         case COL_CAPSULE:
             p.a = support_capsule(&a_cd.data.capsule, dir, a_inv);
@@ -223,11 +434,10 @@ SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, m
     switch(b_cd.type)
     {
         case COL_TRIANGLE:
-
-            support(&p.b, &p.index_b, b_cd.data.hull.pts, b_cd.data.hull.count, b_mat, b_inv, vec3_scale(dir, -1));
+            support(&p.b, &p.index_b, b_cd.data.hull.pts, b_cd.data.hull.count, b_inv, vec3_scale(dir, -1));
             break;
-     case COL_HULL:
-            support(&p.b, &p.index_b, b_cd.data.hull.pts, b_cd.data.hull.count, b_mat, b_inv, vec3_scale(dir, -1));
+        case COL_HULL:
+            support(&p.b, &p.index_b, b_cd.data.hull.pts, b_cd.data.hull.count, b_inv, vec3_scale(dir, -1));
             break;
         case COL_CAPSULE:
             p.b = support_capsule(&b_cd.data.capsule, vec3_scale(dir, -1), b_inv);
@@ -239,7 +449,7 @@ SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, m
 
 
 
-CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW)
+static CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW)
 {
 
 
@@ -542,7 +752,7 @@ CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_m
 // a mesh is convex only if each point lies behind the plane of each face
 // so compute normal or face, then dot(vertex - A, normal) and if > EPS, then it is in front of a face and the mesh is no longer convex. use that information to spli the mesh, clip triangles, and continue forward
 
-void add_point_to_simplex(Simplex * s, SupportVertex p)
+static void add_point_to_simplex(Simplex * s, SupportVertex p)
 {
     if (s->count >= 4)
     {
@@ -559,7 +769,7 @@ void add_point_to_simplex(Simplex * s, SupportVertex p)
     
 }
 
-void remove_point_from_simplex(Simplex * s, int i)
+static void remove_point_from_simplex(Simplex * s, int i)
 {
     if (i >= 4)
     {
@@ -575,7 +785,7 @@ void remove_point_from_simplex(Simplex * s, int i)
 
 }
 
-void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count)
+static void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count)
 {
     s->count = count;
     for (int i = 0; i < count; i++)
@@ -586,7 +796,7 @@ void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count)
 
 
 
-vec3 find_next_direction(Simplex * s, vec3 direction)
+static vec3 find_next_direction(Simplex * s)
 {
     
 
@@ -873,7 +1083,7 @@ bool GJK(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_
         }
         add_point_to_simplex(&s, support);
         
-        dir = find_next_direction(&s, dir);
+        dir = find_next_direction(&s);
         if (dir.x == -999 && dir.y == -999 && dir.z == -999)
         {
             searching = false;

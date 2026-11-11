@@ -1,4 +1,9 @@
 
+/**
+ * @file physics.c
+ * @brief PhysicsComponent impulse resolution and collision detection and acceleration structure traversal.
+ */
+
 #include "core/camera.h"
 #include "core/engine_types.h"
 #include "utilities/types.h"
@@ -20,11 +25,126 @@
 // // hull_plane_dist = the dot product of a point on the hull face and the normal.
 
 /**
+ * @brief Applies gravity to a PhysicsComponent.
+ * @param pc The PhysicsComponent to modify.
+ * @param dt The physics timestep.
+ */
+static void
+    PC_apply_velocity
+    (
+        PhysicsComponent * pc,
+        float    dt
+    );
+
+/**
+ * @brief Generates a manifold between a capsule and a hull plane.
+ * @note Unused, just using single point penetrations for capsules since this was misbehaving.
+ */
+static int generate_capsule_hull_manifold(CapsuleData* cap, mat4 cap_transform,  vec3 hull_normal, float hull_plane_dist,  Manifold * manifold, PhysicsComponent * pcA, PhysicsComponent * pcB);
+
+/**
+ * @brief Clips a manifold based on two different sets of points and faces with separate transforms.
+ * @param manifold The pointer to the current or new Manifold.
+ * @param p The incoming collision data.
+ * @param a_cd CollisionData for A.
+ * @param modelA Transformation matrix for A.
+ * @param b_cd CollisionData for B.
+ * @param modelB Transformation matrix for B.
+ */
+static void clip_manifold(Manifold * manifold, CollisionPoints * p, CollisionData a_cd, mat4 modelA, CollisionData b_cd, mat4 modelB);
+
+/**
+ * @brief Finds a current Manifold if there is one from ::MANIFOLDS for a given pair of MeshNode%s.
+ * @param mn0 MeshNode A.
+ * @param mn1 MeshNode B.
+ * @returns The Manifold if found, NULL if not.
+ */
+static Manifold * find_manifold_for_pair(int mn0, int mn1);
+
+/**
+ * @brief Finds a free Manifold and initializes it between two MeshNode%s.
+ * @param a The PhysicsComponent for A, if there is one.
+ * @param mn0 The MeshNode for A, if there is one.
+ * @param b The PhysicsComponent for B, if there is one.
+ * @param mn1 The MeshNode for B, if there is one.
+ * @returns The Manifold if free slot found, NULL if not.
+ */
+static Manifold * create_new_manifold(PhysicsComponent * a, int mn0, PhysicsComponent * b, int mn1);
+
+/**
+ * @brief Processes a collision against one BVHNode inside of a ::COL_TRIANGLE static MeshNode.
+ * @param mn The MeshNode that is colliding against the static MeshNode.
+ * @param pc The PhysicsComponent that is colliding against the static MeshNode.
+ * @param m0 The static MeshNode%s Mesh.
+ * @param mn0 The static MeshNode.
+ * @param node The current BVHNode.
+ * @param cd The colliding shape's CollisionData.
+ * @param mat The colliding shape's transformation matrix.
+ * @param mat0 The static shape's transformation matrix.
+ * @param mat_inv The colliding shape's inverse transformation matrix.
+ * @param mat0_inv The static shape's inverse transformation matrix.
+ * @param manifold The pair's Manifold.
+ * @returns True if there is a collision detected.
+ */
+static bool PC_process_collision_node(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * node, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, Manifold * manifold);
+
+/**
+ * @brief Traverses the BVH for a static MeshNode with a PhysicsComponent to detect collisions.
+ * @param mn The MeshNode that is detecting against the static MeshNode.
+ * @param pc The PhysicsComponent that is detecting against the static MeshNode.
+ * @param m0 The static MeshNode%s Mesh.
+ * @param mn0 The static MeshNode.
+ * @param nodes The BVHNode%s of the static MeshNode.
+ * @param cd The detecting shape's CollisionData.
+ * @param mat The detecting shape's transformation matrix.
+ * @param mat0 The static shape's transformation matrix.
+ * @param mat_inv The detecting shape's inverse transformation matrix.
+ * @param mat0_inv The static shape's inverse transformation matrix.
+ * @param tr_aabb The world space AABB of the detecting shape to test against BVHNode%s.
+ * @param manifold The pair's Manifold.
+ * @returns True if there is a collision detected.
+ */
+static bool PC_traverse_collision_bvh(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * nodes, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, AABB tr_aabb, Manifold * manifold);
+
+/**
+ * @brief Traverses the scene BVH to detect collisions from a PhysicsComponent.
+ * @param mn The MeshNode that is detecting.
+ * @param pc The PhysicsComponent that is detecting.
+ * @param cd The detecting shape's CollisionData.
+ * @param sd The SceneData that contains the BVH.
+ * @param mat The detecting shape's transformation matrix.
+ * @param mat_inv The detecting shape's inverse transformation matrix.
+ * @param aabb The local space AABB of the detecting shape to test against BVHNode%s.
+ */
+static void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData cd, SceneData * sd, mat4 mat, mat4 mat_inv, AABB aabb);
+
+/**
+ * @brief Searches for collisions from a PhysicsComponent that has no corresponding Mesh.
+ * @param mn The MeshNode that is detecting.
+ * @param pc The PhysicsComponent that is detecting.
+ */
+static void search_collisions_from_pc(MeshNode * mn, PhysicsComponent * pc);
+
+/**
+ * @brief Searches for collisions from a PhysicsComponent that has a corresponding Mesh.
+ * @param mn The MeshNode that is detecting.
+ * @param pc The PhysicsComponent that is detecting.
+ */
+static void search_collisions_from_hull(MeshNode * mn, PhysicsComponent * pc);
+
+/**
+ * @brief Searches for collisions from a PhysicsComponent and determines how based on if its corresponding Mesh exists or not.
+ * @param mn The MeshNode that is detecting.
+ * @param pc The PhysicsComponent that is detecting.
+ */
+static void PC_find_collision(MeshNode * mn, PhysicsComponent * pc);
+
+/**
  * @brief The structures, functions, constants, and variables within the physics system.
  * @addtogroup physics_group 
  * @{
  */
-void
+static void
     PC_apply_velocity
     (
         PhysicsComponent * pc,
@@ -49,7 +169,7 @@ void
 }
 
 
-int generate_capsule_hull_manifold(CapsuleData* cap, mat4 cap_transform,  vec3 hull_normal, float hull_plane_dist,  Manifold * manifold, PhysicsComponent * pcA, PhysicsComponent * pcB) 
+static int generate_capsule_hull_manifold(CapsuleData* cap, mat4 cap_transform,  vec3 hull_normal, float hull_plane_dist,  Manifold * manifold, PhysicsComponent * pcA, PhysicsComponent * pcB) 
 {
     int contact_count = 0;
 
@@ -89,6 +209,7 @@ int generate_capsule_hull_manifold(CapsuleData* cap, mat4 cap_transform,  vec3 h
 
     return contact_count; // Will be 0, 1, or 2
 }
+
 void clip_manifold(Manifold * manifold, CollisionPoints * p, CollisionData a_cd, mat4 modelA, CollisionData b_cd, mat4 modelB)
 {
 
@@ -470,7 +591,7 @@ void clip_manifold(Manifold * manifold, CollisionPoints * p, CollisionData a_cd,
 
 
 
-Manifold * find_manifold_for_pair(int mn0, int mn1)
+static Manifold * find_manifold_for_pair(int mn0, int mn1)
 {
     for (int i = 0; i < MAX_MANIFOLDS; i++)
     {
@@ -487,7 +608,7 @@ Manifold * find_manifold_for_pair(int mn0, int mn1)
 }
 
 
-Manifold * create_new_manifold(PhysicsComponent * a, int mn0, PhysicsComponent * b, int mn1)
+static Manifold * create_new_manifold(PhysicsComponent * a, int mn0, PhysicsComponent * b, int mn1)
 {
 
     for (int i = 0; i < MAX_MANIFOLDS; i++)
@@ -514,7 +635,7 @@ Manifold * create_new_manifold(PhysicsComponent * a, int mn0, PhysicsComponent *
 
 
 
-bool PC_process_collision_node(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * node, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, Manifold * manifold)
+static bool PC_process_collision_node(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * node, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, Manifold * manifold)
 {
     
     MeshFace * fs = CAST_VEC(m0->tris, MeshFace);
@@ -593,7 +714,7 @@ bool PC_process_collision_node(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, 
     return false;
 }
 
-bool PC_traverse_collision_bvh(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * nodes, BVHNode * node, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, AABB tr_aabb, Manifold * manifold)
+static bool PC_traverse_collision_bvh(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, MeshNode * mn0, BVHNode * nodes, CollisionData cd, mat4 mat, mat4 mat0, mat4 mat_inv, mat4 mat0_inv, AABB tr_aabb, Manifold * manifold)
 {
 
     
@@ -628,7 +749,7 @@ bool PC_traverse_collision_bvh(MeshNode * mn, PhysicsComponent * pc, Mesh * m0, 
 
 
 
-void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData cd, SceneData * sd, mat4 mat, mat4 mat_inv, AABB aabb)
+static void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData cd, SceneData * sd, mat4 mat, mat4 mat_inv, AABB aabb)
 {
 
 
@@ -693,9 +814,8 @@ void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData c
                                 mat4 mat0_inv;
                                 m4_inverse((float*)&mat0_inv, (float*)&mat0);
                                 AABB tr = transform_aabb_by_model_matrix(aabb, mat0_inv);
-                                BVHNode * mesh_node = &mesh_nodes[0];
 
-                                bool col = PC_traverse_collision_bvh(mn, pc, m0, mn0, mesh_nodes, mesh_node, cd, mat, mat0, mat_inv, mat0_inv, tr, manifold);
+                                bool col = PC_traverse_collision_bvh(mn, pc, m0, mn0, mesh_nodes, cd, mat, mat0, mat_inv, mat0_inv, tr, manifold);
                             }
                             break;
                         case COL_HULL:
@@ -810,9 +930,8 @@ void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData c
                         mat4 mat0_inv;
                         m4_inverse((float*)&mat0_inv, (float*)&mat0);
                         AABB tr = transform_aabb_by_model_matrix(aabb, mat0_inv);
-                        BVHNode * mesh_node = &mesh_nodes[0];
 
-                        bool col = PC_traverse_collision_bvh(mn, pc, m0, mn0, mesh_nodes, mesh_node, cd, mat, mat0, mat_inv, mat0_inv, tr, manifold);
+                        bool col = PC_traverse_collision_bvh(mn, pc, m0, mn0, mesh_nodes, cd, mat, mat0, mat_inv, mat0_inv, tr, manifold);
                     }
                     else
                     {
@@ -883,7 +1002,7 @@ void PC_traverse_scene_bvh(MeshNode * mn, PhysicsComponent * pc, CollisionData c
 
 
 }
-void search_collisions_from_pc(MeshNode * mn, PhysicsComponent * pc)
+static void search_collisions_from_pc(MeshNode * mn, PhysicsComponent * pc)
 {
     CollisionData cd = pc->cd;
     Mesh * meshes = CAST_VEC(GLOBALS.meshes, Mesh);
@@ -899,7 +1018,7 @@ void search_collisions_from_pc(MeshNode * mn, PhysicsComponent * pc)
 
 
 
-void search_collisions_from_hull(MeshNode * mn, PhysicsComponent * pc)
+static void search_collisions_from_hull(MeshNode * mn, PhysicsComponent * pc)
 {
     Mesh * meshes = CAST_VEC(GLOBALS.meshes, Mesh);
     MeshNode * mns = CAST_VEC(GLOBALS.mesh_nodes, MeshNode);
@@ -944,7 +1063,7 @@ void search_collisions_from_hull(MeshNode * mn, PhysicsComponent * pc)
     
 }
 
-void PC_find_collision(MeshNode * mn, PhysicsComponent * pc)
+static void PC_find_collision(MeshNode * mn, PhysicsComponent * pc)
 {
     
     Mesh * meshes = CAST_VEC(GLOBALS.meshes, Mesh);

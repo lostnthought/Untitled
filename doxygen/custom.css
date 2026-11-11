@@ -2648,4 +2648,6 @@ details[open]>summary::before {
 .MathJax_Display, /* MathJax 2 */
 mjx-container     /* MathJax 3 */ {
   text-align: left !important;
+    font-size: 130% !important; /* Adjust percentage as needed */
 }
+
