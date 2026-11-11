@@ -25,6 +25,7 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * @anchor physics_anchor
  * @details
  * \begin{align}
+ * & \text{Let } P = \text{ all valid %PhysicsComponents and } B = \text{ all valid %Manifolds} \\\\
  * a(P) &= \begin{cases}
  * v_{n+1} &= v_{n} - G \cdot \Delta t \\\\
  * v_{n+1} &= v_{n+1} \cdot \beta \\\\
@@ -50,20 +51,18 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * \mathit{IIW} = (R \cdot IIA) \cdot R \\\\  
  * \mathit{%AABB} = \mathit{%AABB} \cdot M
  * \end{cases} \\\\
- * t(P) &= \lbrace t(x) | x \in P\prime\rbrace \\\\
+ * t(P\prime) &= \lbrace t(x) | x \in P\prime\rbrace \\\\
  * l(P) &= \begin{cases}
  * \text{for } y = 0 \text{ to } P_{\text{max}} - 1: \\\\ 
- * \quad B[P_{i}, t(P)[y]_{i}] = P_{\mathit{%AABB}} \cap t(P)[y]_{\mathit{%AABB}},  & \text{if } P_{\mathit{%AABB}} \cap t(P)[y]_{\mathit{%AABB}} \neq \emptyset \\\\
+ * \quad B[P_{i}, t(P\prime)[y]_{i}] = P_{\mathit{%AABB}} \cap t(P\prime)[y]_{\mathit{%AABB}},  & \text{if } P_{\mathit{%AABB}} \cap t(P\prime)[y]_{\mathit{%AABB}} \neq \emptyset \\\\
  * \end{cases} \\\\
- * & \text{Where B is the manifold array}\\\\
- * B &= \lbrace l(x) | x \in t(P)\rbrace \\\\
- * f(n, i) &= \begin{cases}
+ * B &= \lbrace l(x) | x \in t(P\prime)\rbrace \\\\
+ * f(n) &= \begin{cases}
  * R = r \times n \\\\
  * I = i \cdot R  \\\\
  * T = I \times r  \\\\
  * \psi = n \cdot T \\\\
- * K = \frac{1}{m_a} + \frac{1}{m_b} + \psi_a + \psi_b \\\\
- * (R, I, T, \psi, K)
+ * \frac{1}{m_a} + \frac{1}{m_b} + \psi_a + \psi_b \\\\
  * \end{cases} \\\\
  * H(b) &= \begin{cases}
  * p = M \begin{bmatrix} p_x \\\\ p_y \\\\ p_z \\\\ 1\end{bmatrix} \\\\ 
@@ -74,7 +73,7 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * \phi = V_a - V_b \\\\
  * \mathcal L = \vec \phi \cdot \vec N \\\\
  * \text{when } \mathcal L \in (-\infty, 0)\text{:} \\\\
- * \quad (R, I, T, \psi, K) = f(\vec N, \mathit{IIW}) \\\\
+ * \quad K = f(\vec N) \\\\
  * \quad J = \frac{-(1 + \mathcal{R}_a) \cdot \mathcal L}{K} \\\\
  * \quad \text{Where } \mathcal{R}_a = \text{ restitution} \\\\
  * \quad B_{F}\prime = \max{B_F + J, 0} \\\\
@@ -91,7 +90,7 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * \quad V_l = || V_t || \\\\
  * \quad \text{when } V_l \in (0, \infty)\text{:} \\\\
  * \qquad \hat t = \frac{V_t}{V_l} \\\\
- * \qquad (R, I, T, \psi, K) = f(\hat t, \mathit{IIW}) \\\\
+ * \qquad K = f(\hat t) \\\\
  * \qquad J_t = \frac{-(\phi \cdot \hat t)}{K} \\\\
  * \qquad \gamma = \mu_a B_F \\\\
  * \qquad B_T\prime = \min(\max(B_T + J_t, -\gamma), \gamma) \\\\
@@ -103,8 +102,8 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * \qquad \omega \pm \omega_F \\\\
  * \end{cases} \\\\
  * & \text {Where } \pm \text{ relates even and opposite forces and where H(b) modifies both respective bodies in } P\prime \\\\
- * P\prime\prime &= \lbrace H(x) | x \in B\rbrace \\\\
- * P\prime\prime\prime &= t(P) = \lbrace t(x) | x \in P\prime\prime\rbrace \\\\
+ * H(B) &= \lbrace H(x) | x \in B\rbrace \\\\
+ * P\prime\prime &= t(P\prime) = \lbrace t(x) | x \in P\prime\rbrace \\\\
  * S(b) &= \begin{cases}
  * p = M \begin{bmatrix} p_x \\\\ p_y \\\\ p_z \\\\ 1\end{bmatrix} \\\\ 
  * d = p_a - p_b \\\\
@@ -118,7 +117,7 @@ void init_PC(int mesh_node, PhysicsComponent * pc, AABB ai_aabb, CollisionType c
  * D = d \cdot T \\\\
  * B \setminus \lbrace b \rbrace,  & \text{ if } s \gt 0.01 \text{ or } D \gt 0.01
  * \end{cases} \\\\
- * B\prime &= \lbrace S(x) | x \in B\rbrace \\\\
+ * B\prime &= S(B) = \lbrace S(x) | x \in B\rbrace \\\\
  * \end{align}
  */
 void update_physics_components();

@@ -98,7 +98,7 @@ static void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 inv
  * @param dir The support direction.
  * @returns The resulting SupportVertex.
  */
-static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir);
+SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir);
 
 /**
  * @brief The Expanding Polytope Algorithm - expands a polytope in a loop as it becomes a polyhedron.
@@ -112,7 +112,7 @@ static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a
  * @param EW The EPA workspace to store the visible indices into.
  * @returns The resulting CollisionPoints.
  */
-static CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW);
+CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW);
 
 /**
  * @brief Adds a point to the simplex by placing it at the bottom and shifting the other points forward.
@@ -221,7 +221,7 @@ static void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count
  * @param s The current Simplex from GJK().
  * @returns The resulting direction.
  */
-static vec3 find_next_direction(Simplex * sn);
+vec3 find_next_direction(Simplex * sn);
  
 static void EPA_check_face_visibility(vec3 p, EPAWorkspace * EW)
 {
@@ -415,7 +415,7 @@ static void support(vec3 * v, size_t * index, vec3 * verts, size_t cnt, mat4 inv
     *index = best_idx;
 }
 
-static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir)
+SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, vec3 dir)
 {
 
     SupportVertex p;
@@ -449,7 +449,7 @@ static SupportVertex support_diff(CollisionData a_cd, CollisionData b_cd, mat4 a
 
 
 
-static CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW)
+CollisionPoints epa(CollisionData a_cd, CollisionData b_cd, mat4 a_mat, mat4 b_mat, mat4 a_inv, mat4 b_inv, Simplex * s, EPAWorkspace * EW)
 {
 
 
@@ -796,7 +796,7 @@ static void replace_simplex_points(Simplex * s, SupportVertex abcd[4], int count
 
 
 
-static vec3 find_next_direction(Simplex * s)
+vec3 find_next_direction(Simplex * s)
 {
     
 

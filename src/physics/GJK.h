@@ -11,18 +11,20 @@
 
 /**
  * @brief GJK polytope construction based on A and B (which can be any CollisionType), calls EPA internally.
+ * @anchor collision_anchor
+ * @see epa()
+ * @see support_diff()
+ * @see find_next_direction()
  * @details
  * \begin{align}
  * v &= \begin{bmatrix} 0 \\\\ 0\\\\ 1 \end{bmatrix}\\\\
  * c &= 0 \\\\
- * \end{align}
- * \begin{align}
- * \text{while } c = 0 \text{:} \\\\   
- * \quad p &= S(A, B) \\\\
- * \quad c &= \text{DNE}, & \text{if } p \cdot v \leq 0 \text{ or } p \in s.\\\\
- * \quad s &\Vert p \\\\ 
- * \quad v &= %D(s, v) \\\\ 
- * \quad c &= 1, & \text{if } v = v_\perp \\\\
+ * & \text{while } c = 0 \text{:} \\\\   
+ * & \quad p = S(A, B) \\\\
+ * & \quad c = \text{DNE}, & \text{if } p \cdot v \leq 0 \text{ or } p \in s.\\\\
+ * & \quad s \Vert p \\\\ 
+ * & \quad v = %D(s, v) \\\\ 
+ * & \quad c = 1, & \text{if } v = v_\perp \\\\
  * \end{align}
  * \f$\text{Where } c \text{ is the collision status and s is the simplex.}\f$
  * @param a_cd CollisionData for A.
