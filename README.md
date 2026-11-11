@@ -2,6 +2,11 @@
 A custom 3D game engine made from scratch in C with uv lightmapping, path traced audio, physics, and more. Independently developed entirely on a mobile 1050 to bring high-fidelity graphics to constrained hardware.  
 ### [Docs (Doxygen)](https://lostnthought.github.io/lostnthought/engine-docs/index.html)
 
+<p align="center">
+
+ <img width="49%" alt="rp119" src="https://github.com/user-attachments/assets/de08653b-a36b-4180-abd7-e97801bbefc2" />  <img width="49%" alt="rp172" src="https://github.com/user-attachments/assets/d05d3e43-3641-4026-a40d-286862c35164" /> 
+</p>
+
 ## Features
 - **Rendering:** Clustered forward shading, GPU-driven rendering (MDI), indirect lighting probe volumes, reflection probes, and a software path-traced UV lightmapper using BVH traversal on the GPU.
 - **Audio:** Path-traced audio probe volumes computed offline via Schroeder integration, rotated in real-time, convolved with an HRTF, and partitioned for overlap-add as it approaches the audio thread.
@@ -35,3 +40,8 @@ For inputs and controls, refer to input.c.
 make docs
 ```
 Doxygen outputs to /docs/.
+<p align="center">
+<img width="49% alt="rp168" src="https://github.com/user-attachments/assets/23151ed7-8bd9-4828-8053-b3a01ec5925b" />
+  <img width="49%" alt="rp169" src="https://github.com/user-attachments/assets/04204ef8-0666-46a1-a7e3-8b65de6c0d98" />
+
+</p>
